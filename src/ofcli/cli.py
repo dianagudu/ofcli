@@ -1,10 +1,10 @@
-"""Executable for running oidcfed cli tool.
+"""Executable for running ofcli cli tool.
 """
 
 import click
 import functools
 
-from oidcfed.api import (
+from ofcli.api import (
     get_entity_configuration,
     get_entity_metadata,
     get_entity_jwks,
@@ -12,8 +12,8 @@ from oidcfed.api import (
     get_entity_statement,
     list_subordinates,
 )
-from oidcfed.utils import print_json, print_trustchains
-from oidcfed.logging import logger
+from ofcli.utils import print_json, print_trustchains
+from ofcli.logging import logger
 
 
 def safe_cli():

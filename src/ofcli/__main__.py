@@ -1,4 +1,4 @@
-from oidcfed.cli import safe_cli
+from ofcli.cli import safe_cli
 
 
 def main():

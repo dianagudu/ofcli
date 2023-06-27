@@ -6,8 +6,8 @@ import urllib.parse
 import requests
 import json
 
-from oidcfed import utils
-from oidcfed.message import EntityStatement, Metadata
+from ofcli import utils
+from ofcli.message import EntityStatement, Metadata
 
 
 def get_entity_configuration(
@@ -64,15 +64,20 @@ def get_entity_jwks(entity_id: str, verify_ssl: bool = True) -> dict:
 
 
 def get_trustchains(
-    entity_id: str, trust_anchor: str = "", verify_ssl: bool = True
+    entity_id: str, trust_anchors: list[str] | None = None, verify_ssl: bool = True
 ) -> dict:
     """Builds all trustchains for a given entity ID.
 
     :param entity_id: The entity ID to build the trustchains for (URL).
-    :param trust_anchor: The trust anchor to use for building the trustchains. If not set (empty string), all possible trust chains until the root are built.
+    :param trust_anchors: The trust anchor to use for building the trustchains. If not set (None), all possible trust chains until the root are built.
     :param verify_ssl: Whether to verify the SSL certificate of the entity ID. Defaults to True.
     :return: The trustchains as a dictionary.
     """
+    # entity_configuration_jws = utils.fetch_jws_from_url(
+    #     utils.well_known_url(entity_id), verify_ssl=verify_ssl
+    # )
+    # chains = {}
+    # authority_hints = entity_configuration.get("authority_hints", [])
     chains = utils.build_trustchains(entity_id, verify_ssl=verify_ssl)
     return {entity_id: chains}
 
