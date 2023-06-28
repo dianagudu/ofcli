@@ -9,10 +9,10 @@ from ofcli.api import (
     get_entity_metadata,
     get_entity_jwks,
     get_trustchains,
-    get_entity_statement,
+    fetch_entity_statement,
     list_subordinates,
 )
-from ofcli.utils import print_json, print_trustchains
+from ofcli.utils import print_json, print_trustchains, set_verify_ssl
 from ofcli.logging import logger
 
 
@@ -32,6 +32,7 @@ def common_options(f):
             default=False,
             help="Disable TLS certificate verification.",
             expose_value=True,
+            callback=set_verify_ssl,
         ),
     ]
     return functools.reduce(lambda x, opt: opt(x), options, f)
@@ -65,11 +66,7 @@ def configuration(entity_id: str, verify: bool, **kwargs):
     """
     Fetches an entity configuration and prints it to stdout.
     """
-    print_json(
-        get_entity_configuration(
-            entity_id, verify=verify, verify_ssl=not kwargs["insecure"]
-        )
-    )
+    print_json(get_entity_configuration(entity_id, verify=verify))
 
 
 @entity.command("jwks", short_help="Prints the JWKS for given entity_id.")
@@ -79,7 +76,7 @@ def jwks(entity_id: str, **kwargs):
     """
     Fetches an entity configuration and prints the JWKS to stdout.
     """
-    print_json(get_entity_jwks(entity_id, verify_ssl=not kwargs["insecure"]))
+    print_json(get_entity_jwks(entity_id))
 
 
 @entity.command("metadata", short_help="Prints the metadata for given entity_id.")
@@ -96,9 +93,7 @@ def metadata(entity_id: str, verify: bool = False, **kwargs):
     """
     Fetches an entity configuration and prints the metadata to stdout.
     """
-    print_json(
-        get_entity_metadata(entity_id, verify=verify, verify_ssl=not kwargs["insecure"])
-    )
+    print_json(get_entity_metadata(entity_id, verify=verify))
 
 
 @cli.command(
@@ -106,20 +101,21 @@ def metadata(entity_id: str, verify: bool = False, **kwargs):
     help="Builds all trustchains for a given entity and prints them. If any trust anchor is specified, only trustchains ending in the trust anchor will be shown.",
 )
 @click.argument("entity_id")
-@click.argument(
-    "trust_anchor",
-    metavar="TRUST_ANCHOR_ID",
+@click.option(
+    "--ta",
+    "--trust-anchor",
+    help="Trust anchor ID to use for building trustchains (multiple TAs possible).",
+    metavar="TA_ID",
     required=False,
-    default="",
+    default=[],
+    multiple=True,
 )
 @common_options
-def trustchains(entity_id: str, trust_anchor: str, **kwargs):
+def trustchains(entity_id: str, ta: tuple[str], **kwargs):
     """
     Build trustchain for a given entity and print it to stdout.
     """
-    print_trustchains(
-        get_trustchains(entity_id, trust_anchor, verify_ssl=not kwargs["insecure"])
-    )
+    print_trustchains(get_trustchains(entity_id, list(ta)))
 
 
 @cli.command(
@@ -133,16 +129,30 @@ def fetch(entity_id: str, issuer: str, **kwargs):
     """
     Fetch an entity statement for ENTITY_ID from ISSUER and print it to stdout.
     """
-    print_json(
-        get_entity_statement(entity_id, issuer, verify_ssl=not kwargs["insecure"])
-    )
+    print_json(fetch_entity_statement(entity_id, issuer))
 
 
 @cli.command("list", short_help="List all subordinate entities.")
 @click.argument("entity_id", metavar="ENTITY_ID")
-@click.option("--entity-type", metavar="TYPE", default=None)
-@click.option("--trust-marked", is_flag=True, default=False)
-@click.option("--trust-mark-id", metavar="ID", default=None)
+@click.option(
+    "--entity-type",
+    metavar="TYPE",
+    default=None,
+    type=click.Choice(
+        ["openid_relying_party", "openid_provider", "federation_entity"],
+        case_sensitive=False,
+    ),
+    help="Filter by entity type. Types: openid_relying_party, openid_provider, federation_entity.",
+)
+@click.option(
+    "--trust-marked",
+    is_flag=True,
+    default=False,
+    help="Only list trust marked entities.",
+)
+@click.option(
+    "--trust-mark-id", metavar="ID", default=None, help="Filter by trust mark."
+)
 @common_options
 def federation_list(
     entity_id: str,
@@ -152,13 +162,12 @@ def federation_list(
     **kwargs
 ):
     """Lists all subordinates of a federation entity."""
-    click.echo(
+    print_json(
         list_subordinates(
             entity_id=entity_id,
             entity_type=entity_type,
             trust_marked=trust_marked,
             trust_mark_id=trust_mark_id,
-            verify_ssl=not kwargs["insecure"],
         )
     )
 

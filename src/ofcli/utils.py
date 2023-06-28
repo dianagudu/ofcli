@@ -5,6 +5,16 @@ import urllib.parse
 import click
 import requests
 from cryptojwt.jws.jws import factory
+from ofcli import trustchain
+
+VERIFY_SSL = True
+
+
+def set_verify_ssl(ctx, param, value):
+    """Callback for setting the verify_ssl option."""
+    global VERIFY_SSL
+    VERIFY_SSL = not value
+    return value
 
 
 def well_known_url(entity_id: str) -> str:
@@ -16,14 +26,13 @@ def well_known_url(entity_id: str) -> str:
     return entity_id.rstrip("/") + "/.well-known/openid-federation"
 
 
-def fetch_jws_from_url(url: str, verify_ssl: bool = True) -> str:
+def fetch_jws_from_url(url: str) -> str:
     """Fetches a JWS from a given URL.
 
     :param url: The url to fetch the entity configuration from.
-    :param verify_ssl: Whether to verify the SSL certificate of the entity ID. Defaults to True.
     :return: The JWS as a string.
     """
-    response = requests.request("GET", url, verify=verify_ssl)
+    response = requests.request("GET", url, verify=VERIFY_SSL)
 
     if response.status_code != 200:
         raise ValueError(
@@ -53,62 +62,75 @@ def get_payload(jws_str: str) -> dict:
     return payload
 
 
-def get_self_signed_entity_configuration(
-    entity_id: str, verify_ssl: bool = True
-) -> dict:
+def add_query_params(url: str, params: dict) -> str:
+    """Adds query parameters to a URL.
+
+    :param url: The URL to add the query parameters to.
+    :param params: The query parameters to add.
+    :return: The URL with the query parameters added.
+    """
+    url_parts = list(urllib.parse.urlparse(url))
+    query = dict(urllib.parse.parse_qsl(url_parts[4]))
+    query.update(params)
+    url_parts[4] = urllib.parse.urlencode(query)
+    return urllib.parse.urlunparse(url_parts)
+
+
+def get_self_signed_entity_configuration(entity_id: str) -> dict:
     """Fetches the self-signed entity configuration of a given entity ID.
 
     :param entity_id: The entity ID to fetch the entity configuration from (URL).
-    :param verify_ssl: Whether to verify the SSL certificate of the entity ID. Defaults to True.
     :return: The decoded entity configuration as a dictionary.
     """
+    return get_payload(fetch_jws_from_url(well_known_url(entity_id)))
+
+
+def fetch_entity_statement(entity_id: str, issuer: str) -> dict:
+    issuer_metadata = get_self_signed_entity_configuration(issuer).get("metadata")
+    if not issuer_metadata:
+        raise Exception("No metadata found in entity configuration.")
+    try:
+        fe = issuer_metadata["federation_entity"]
+    except KeyError:
+        raise Exception("Leaf entities cannot publish statements about other entities.")
+    try:
+        fetch_url = fe["federation_fetch_endpoint"]
+    except KeyError:
+        raise Exception("No federation_fetch_endpoint found in metadata!")
     return get_payload(
-        fetch_jws_from_url(well_known_url(entity_id), verify_ssl=verify_ssl)
+        fetch_jws_from_url(
+            add_query_params(fetch_url, {"iss": issuer, "sub": entity_id})
+        )
     )
 
 
-def fetch_entity_statement(
-    entity_id: str, fetch_url: str, iss: str, verify_ssl: bool = True
-) -> str:
-    """Fetch an entity statement from a fetch endpoint.
-
-    :param entity_id: The entity ID about which the entity statement is.
-    :param fetch_url: the federation fetch endpoint.
-    :param iss: the issuer of the entity statement.
-    :param verify_ssl: Whether to verify the SSL certificate of the entity ID. Defaults to True.
-    :return: The JWS entity statement as a string.
-    """
-    url = (
-        fetch_url.rstrip("/")
-        + "?iss="
-        + urllib.parse.quote_plus(iss)
-        + "&sub="
-        + urllib.parse.quote_plus(entity_id)
-    )
-    return fetch_jws_from_url(url, verify_ssl=verify_ssl)
-
-
-def build_trustchains(entity_id: str, verify_ssl: bool = True) -> dict:
-    entity_configuration = get_self_signed_entity_configuration(
-        entity_id, verify_ssl=verify_ssl
-    )
-    superiors = {}
-    authority_hints = entity_configuration.get("authority_hints", [])
-    for authority in authority_hints:
-        superiors[authority] = build_trustchains(authority, verify_ssl=verify_ssl)
-    return superiors
+def build_trustchains(
+    entity_id: str, trust_anchors: list[str]
+) -> list[trustchain.TrustChain]:
+    resolver = trustchain.TrustChainResolver(entity_id, trust_anchors)
+    resolver.resolve()
+    return [
+        chain
+        for chain in resolver.chains()
+        if chain.contains_trust_anchors(trust_anchors)
+    ]
 
 
 def print_json(data: dict):
     json.dump(data, click.get_text_stream("stdout"), indent=2)
 
 
-def print_trustchains(trustchain: dict, indent: int = 0):
-    """Prints a trustchain to stdout.
+def print_trustchains(chains: list[trustchain.TrustChain]):
+    for chain in chains:
+        click.echo(chain)
 
-    :param trustchain: The trustchain to print.
-    :param indent: The indentation level to use. Defaults to 0.
-    """
-    for superior, chain in trustchain.items():
-        click.echo("\t" * indent + superior)
-        print_trustchains(chain, indent + 1)
+
+# def print_trustchains(trustchain: dict, indent: int = 0):
+#     """Prints a trustchain to stdout.
+
+#     :param trustchain: The trustchain to print.
+#     :param indent: The indentation level to use. Defaults to 0.
+#     """
+#     for superior, chain in trustchain.items():
+#         click.echo("\t" * indent + superior)
+#         print_trustchains(chain, indent + 1)
