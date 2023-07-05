@@ -6,6 +6,7 @@ import click
 import requests
 from cryptojwt.jws.jws import factory
 from ofcli import trustchain
+from ofcli.logging import logger
 
 VERIFY_SSL = True
 
@@ -123,8 +124,15 @@ def print_json(data: dict):
 
 
 def print_trustchains(chains: list[trustchain.TrustChain]):
+    if len(chains) == 0:
+        logger.warn("No trust chains found.")
+        return
     for chain in chains:
         click.echo(chain)
+
+
+def discover(entity_id: str, trust_anchors: list[str]) -> list[str]:
+    return []
 
 
 # def print_trustchains(trustchain: dict, indent: int = 0):

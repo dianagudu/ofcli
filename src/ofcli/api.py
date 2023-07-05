@@ -101,3 +101,27 @@ def list_subordinates(
         )
 
     return json.loads(response.text)
+
+
+def discover(entity_id: str, tas: list[str] = []) -> list[str]:
+    """Discovers all OPs available in the federation to a given RP.
+
+    :param entity_id: The entity ID to discover the OPs for (URL).
+    :param tas: The trust anchors to use for discovery. Defaults to [].
+    :return: The discovered OPs.
+    """
+
+    metadata = get_entity_metadata(entity_id=entity_id)
+    # check if it is an openid_relying_party
+    if not metadata.get("openid_relying_party"):
+        raise Exception("Entity is not an OpenID Relying Party.")
+    return utils.discover(entity_id, tas)
+
+
+def resolve_entity(entity_id: str, ta: str) -> dict:
+    """Resolves an entity ID's metadata given a trust anchor.
+
+    :param entity_id: The entity ID to resolve (URL).
+    :return: The resolved metadata.
+    """
+    return {}

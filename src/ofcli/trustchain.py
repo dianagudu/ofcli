@@ -1,3 +1,4 @@
+from functools import reduce
 import pygraphviz
 
 from ofcli.message import EntityStatement
@@ -6,12 +7,25 @@ from ofcli import utils
 
 class TrustChain:
     _chain: list[EntityStatement]
+    _exp: int
 
     def __init__(self, chain: list[EntityStatement]) -> None:
         self._chain = chain
+        # calculate expiration as the minimum of all entities' expirations
+        self._exp = reduce(
+            lambda x, y: x if x and x < y.get("exp", 0) else y.get("exp", 0),
+            self._chain,
+            0,
+        )
 
     def __str__(self) -> str:
-        return "* " + " -> ".join([link.get("iss") or "" for link in self._chain])
+        return (
+            "* "
+            + " -> ".join([link.get("iss") or "" for link in self._chain])
+            #     + " (expiring at "
+            #     + str(self._exp)
+            #     + ")"
+        )
 
     def contains_trust_anchors(self, trust_anchors: list[str]) -> bool:
         if len(trust_anchors) == 0:
