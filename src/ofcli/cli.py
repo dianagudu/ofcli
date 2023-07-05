@@ -110,12 +110,24 @@ def metadata(entity_id: str, verify: bool = False, **kwargs):
     default=[],
     multiple=True,
 )
+@click.option(
+    "--export",
+    help="Export trustchains to a dot file.",
+    metavar="DOT_FILE",
+    required=False,
+    default=None,
+    # add .dot extension if not present
+    callback=lambda ctx, param, value: value
+    if value.endswith(".dot")
+    else value + ".dot",
+)
 @common_options
-def trustchains(entity_id: str, ta: tuple[str], **kwargs):
+def trustchains(entity_id: str, ta: tuple[str], export: str | None, **kwargs):
     """
     Build trustchain for a given entity and print it to stdout.
     """
-    print_trustchains(get_trustchains(entity_id, list(ta)))
+    chains = get_trustchains(entity_id, list(ta), export)
+    print_trustchains(chains)
 
 
 @cli.command(

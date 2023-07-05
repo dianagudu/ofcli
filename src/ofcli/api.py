@@ -50,14 +50,17 @@ def get_entity_jwks(entity_id: str) -> dict:
     return jwks
 
 
-def get_trustchains(entity_id: str, trust_anchors: list[str]) -> list[TrustChain]:
+def get_trustchains(
+    entity_id: str, trust_anchors: list[str] = [], export: str | None = None
+) -> list[TrustChain]:
     """Builds all trustchains for a given entity ID.
 
     :param entity_id: The entity ID to build the trustchains for (URL).
     :param trust_anchors: The trust anchor to use for building the trustchains. If not set (empty list), all possible trust chains until the root are built.
+    :param export: The file to export the trustchains to. Defaults to None.
     :return: The trustchains as a list of lists of entity IDs.
     """
-    return utils.build_trustchains(entity_id, trust_anchors)
+    return utils.build_trustchains(entity_id, trust_anchors, export)
 
 
 def fetch_entity_statement(entity_id: str, issuer: str) -> dict:

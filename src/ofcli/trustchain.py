@@ -1,3 +1,5 @@
+import pygraphviz
+
 from ofcli.message import EntityStatement
 from ofcli import utils
 
@@ -9,7 +11,7 @@ class TrustChain:
         self._chain = chain
 
     def __str__(self) -> str:
-        return " -> ".join([link.get("iss") or "" for link in self._chain])
+        return "* " + " -> ".join([link.get("iss") or "" for link in self._chain])
 
     def contains_trust_anchors(self, trust_anchors: list[str]) -> bool:
         if len(trust_anchors) == 0:
@@ -36,6 +38,8 @@ class TrustTree:
 
     def resolve(self, anchors: list[str]) -> None:
         issuer = self.entity.get("iss")
+        if not issuer:
+            raise Exception("No issuer found in entity statement.")
         if issuer in anchors:
             return
         for authority in self.entity.get("authority_hints", []):
@@ -87,6 +91,14 @@ class TrustChainResolver:
         self.trust_tree = TrustTree(starting, None)
         self.trust_tree.resolve(self.trust_anchors)
 
+    def export(self, filename: str) -> None:
+        if self.trust_tree:
+            graph = pygraphviz.AGraph(
+                name=f"Trustchains: {self.starting_entity}", directed=True
+            )
+            self._export(self.trust_tree, graph)
+            graph.write(filename)
+
     def chains(self) -> list[TrustChain]:
         if self.trust_tree:
             chains = self.trust_tree.chains()
@@ -99,3 +111,11 @@ class TrustChainResolver:
         if self.trust_tree:
             return self.trust_tree.verify_signatures(self.trust_anchors)
         return False
+
+    def _export(self, trust_tree: TrustTree, graph: pygraphviz.AGraph) -> None:
+        if trust_tree.subordinate:
+            graph.add_edge(
+                trust_tree.entity.get("sub"), trust_tree.subordinate.get("sub")
+            )
+        for authority in trust_tree.authorities:
+            self._export(authority, graph)

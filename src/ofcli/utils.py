@@ -105,10 +105,12 @@ def fetch_entity_statement(entity_id: str, issuer: str) -> dict:
 
 
 def build_trustchains(
-    entity_id: str, trust_anchors: list[str]
+    entity_id: str, trust_anchors: list[str], export: str | None
 ) -> list[trustchain.TrustChain]:
     resolver = trustchain.TrustChainResolver(entity_id, trust_anchors)
     resolver.resolve()
+    if export:
+        resolver.export(export)
     return [
         chain
         for chain in resolver.chains()
