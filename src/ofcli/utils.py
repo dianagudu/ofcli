@@ -79,7 +79,7 @@ def fetch_jws_from_url(url: str) -> str:
     :param url: The url to fetch the entity configuration from.
     :return: The JWS as a string.
     """
-    logger.debug(f"Using insecure connection: {not VERIFY_SSL}")
+    # logger.debug(f"Using insecure connection: {not VERIFY_SSL}")
     response = requests.request("GET", url, verify=VERIFY_SSL)
 
     if response.status_code != 200:
