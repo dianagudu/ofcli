@@ -1,21 +1,67 @@
 """Utility functions for OIDC Federation CLI."""
 
+import typing as t
+from gettext import gettext as _
 import json
 import urllib.parse
 import click
 import requests
 from cryptojwt.jws.jws import factory
+
 from ofcli import trustchain
 from ofcli.logging import logger
+from ofcli import __version__ as ofcli_version, __name__ as ofcli_name
 
 VERIFY_SSL = True
 
 
 def set_verify_ssl(ctx, param, value):
-    """Callback for setting the verify_ssl option."""
+    """
+    First, take over value from parent, if set.
+    Might seem weird: the flag is called --insecure, but the
+    meaning of the value is verify:
+    - True by default, verify if HTTPS requests are secure, verify certificates
+    - False means do not verify, disable warnings.
+    When the flag is set, verify will be False.
+    """
+    try:
+        value = ctx.meta[param.name]
+    except Exception:
+        # set the verify in the context meta dict to be used by subcommands
+        # only if it was set through the commandline
+        if (
+            ctx.get_parameter_source(param.name)
+            is click.core.ParameterSource.COMMANDLINE
+        ):
+            ctx.meta[param.name] = value
     global VERIFY_SSL
     VERIFY_SSL = not value
+    # urllib3.disable_warnings()
     return value
+
+
+def print_version(ctx: click.Context, param: click.Parameter, value: bool) -> None:
+    """Print version and exit context."""
+    if not value or ctx.resilient_parsing:
+        return
+
+    package_name = ofcli_name
+    package_version = ofcli_version
+    prog_name = ctx.find_root().info_name
+
+    message = _("%(package)s, %(version)s")
+
+    if package_version is None:
+        raise RuntimeError(
+            f"Could not determine the version for {package_name!r} automatically."
+        )
+
+    click.echo(
+        t.cast(str, message)
+        % {"prog": prog_name, "package": package_name, "version": package_version},
+        color=ctx.color,
+    )
+    ctx.exit()
 
 
 def well_known_url(entity_id: str) -> str:
@@ -33,6 +79,7 @@ def fetch_jws_from_url(url: str) -> str:
     :param url: The url to fetch the entity configuration from.
     :return: The JWS as a string.
     """
+    logger.debug(f"Using insecure connection: {not VERIFY_SSL}")
     response = requests.request("GET", url, verify=VERIFY_SSL)
 
     if response.status_code != 200:

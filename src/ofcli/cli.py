@@ -16,7 +16,7 @@ from ofcli.api import (
     discover,
     resolve_entity,
 )
-from ofcli.utils import print_json, print_trustchains, set_verify_ssl
+from ofcli.utils import print_json, print_trustchains, set_verify_ssl, print_version
 from ofcli.logging import logger
 
 
@@ -111,15 +111,6 @@ def my_debug_option(logger=None, *names, **kwargs):
 
 
 def common_options(f):
-    @my_debug_option(logger)
-    @my_logging_simple_verbosity_option(
-        logger,
-        "--log-level",
-        default="ERROR",
-        metavar="LEVEL",
-        envvar="LOG",
-        show_envvar=True,
-    )
     @click.option(
         "insecure",
         "--insecure",
@@ -129,6 +120,23 @@ def common_options(f):
         expose_value=True,
         callback=set_verify_ssl,
     )
+    @my_logging_simple_verbosity_option(
+        logger,
+        "--log-level",
+        default="ERROR",
+        metavar="LEVEL",
+        envvar="LOG",
+        show_envvar=True,
+    )
+    @my_debug_option(logger)
+    @click.option(
+        "--version",
+        is_flag=True,
+        expose_value=False,
+        is_eager=True,
+        callback=print_version,
+        help="Print program version and exit.",
+    )
     @wraps(f)
     def wrapper(*args, **kwargs):
         return f(*args, **kwargs)
@@ -137,12 +145,14 @@ def common_options(f):
 
 
 @click.group(help="Tool for exploring an OIDC federation.")
+@common_options
 def cli(**kwargs):
     """ """
     pass
 
 
 @cli.group("entity", help="Commands for working with an entity in an OIDC federation.")
+@common_options
 def entity(**kwargs):
     pass
 
