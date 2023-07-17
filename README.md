@@ -68,10 +68,10 @@ Options:
 
 ### Installing the development version
 
-The development version of `ofcli` can be installed from the `main` branch of the [git repository](https://gitlab.geant.org/TI_Incubator/oidcfed/ofcli) and can be installed as follows (note the `-e` switch to install it in editable or "develop mode"):
+The development version of `ofcli` can be installed from the `main` branch of the [git repository](https://gitlab.software.geant.org/TI_Incubator/oidcfed/ofcli) and can be installed as follows (note the `-e` switch to install it in editable or "develop mode"):
 
 ```bash
-git clone https://gitlab.geant.org/TI_Incubator/oidcfed/ofcli
+git clone https://gitlab.software.geant.org/TI_Incubator/oidcfed/ofcli
 cd ofcli
 pip install -e .
 ```
