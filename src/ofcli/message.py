@@ -1,7 +1,9 @@
 """ Classes and functions used to describe information in an OpenID Connect Federation.
-
-from fedservice
 """
+__author__ = "Roland Hedberg"
+__license__ = "Apache 2.0"
+__version__ = ""
+
 import logging
 
 from cryptojwt.exception import Expired

@@ -124,4 +124,4 @@ def resolve_entity(entity_id: str, ta: str) -> dict:
     :param entity_id: The entity ID to resolve (URL).
     :return: The resolved metadata.
     """
-    return {}
+    return utils.resolve_entity(entity_id, ta)

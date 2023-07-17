@@ -2,7 +2,9 @@
 """
 
 import click
-import functools
+import click_logging
+from functools import wraps
+import logging
 
 from ofcli.api import (
     get_entity_configuration,
@@ -25,19 +27,113 @@ def safe_cli():
         logger.error(e)
 
 
+def my_logging_simple_verbosity_option(logger=None, *names, **kwargs):
+    """My version of @click_logging.simple_verbosity_option
+    that takes over the value from the parent command.
+
+    A decorator that adds a `--verbosity, -v` option to the decorated
+    command.
+
+    Name can be configured through ``*names``. Keyword arguments are passed to
+    the underlying ``click.option`` decorator.
+    """
+    if not names:
+        names = ["--verbosity", "-v"]
+
+    kwargs.setdefault("default", "INFO")
+    kwargs.setdefault("metavar", "LVL")
+    kwargs.setdefault("expose_value", False)
+    kwargs.setdefault(
+        "help",
+        f'Either CRITICAL, ERROR, WARNING, INFO or DEBUG. Default value: {kwargs["default"]}.',
+    )
+    kwargs.setdefault("is_eager", True)
+
+    logger = click_logging.core._normalize_logger(logger)
+
+    def decorator(f):
+        def _set_level(ctx, param, value):
+            value = value.upper()
+            # check if log_level was set in the parent command and use it as default
+            try:
+                value = ctx.meta["log_level"]
+            except Exception as e:
+                # set the log_level in the context meta dict to be used by subcommands
+                # only if it was set through the commandline
+                if (
+                    ctx.get_parameter_source(param.name)
+                    is click.core.ParameterSource.COMMANDLINE
+                ):
+                    ctx.meta["log_level"] = value
+
+            x = getattr(logging, value, None)
+            if x is None:
+                raise click.BadParameter(
+                    "Must be CRITICAL, ERROR, WARNING, INFO or DEBUG, not {}".format(
+                        value
+                    )
+                )
+            logger.setLevel(x)
+
+        return click.option(*names, callback=_set_level, **kwargs)(f)
+
+    return decorator
+
+
+def my_debug_option(logger=None, *names, **kwargs):
+    """A decorator that adds a `--debug` option to the decorated command.
+
+    Name can be configured through ``*names``. Keyword arguments are passed to
+    the underlying ``click.option`` decorator.
+    """
+    if not names:
+        names = ["--debug"]
+
+    kwargs.setdefault("default", False)
+    kwargs.setdefault("is_flag", True)
+    kwargs.setdefault("expose_value", False)
+    kwargs.setdefault("help", "Sets the log level to DEBUG.")
+    kwargs.setdefault("is_eager", True)
+
+    logger = click_logging.core._normalize_logger(logger)
+
+    def decorator(f):
+        def _set_debug(ctx, param, value):
+            if value:
+                # this option overwrites any parent option or --log-level options
+                # when enabled, log level is always debug
+                ctx.meta["log_level"] = "DEBUG"
+                logger.setLevel(logging.DEBUG)
+
+        return click.option(*names, callback=_set_debug, **kwargs)(f)
+
+    return decorator
+
+
 def common_options(f):
-    options = [
-        click.option(
-            "insecure",
-            "--insecure",
-            is_flag=True,
-            default=False,
-            help="Disable TLS certificate verification.",
-            expose_value=True,
-            callback=set_verify_ssl,
-        ),
-    ]
-    return functools.reduce(lambda x, opt: opt(x), options, f)
+    @my_debug_option(logger)
+    @my_logging_simple_verbosity_option(
+        logger,
+        "--log-level",
+        default="ERROR",
+        metavar="LEVEL",
+        envvar="LOG",
+        show_envvar=True,
+    )
+    @click.option(
+        "insecure",
+        "--insecure",
+        is_flag=True,
+        default=False,
+        help="Disable TLS certificate verification.",
+        expose_value=True,
+        callback=set_verify_ssl,
+    )
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        return f(*args, **kwargs)
+
+    return wrapper
 
 
 @click.group(help="Tool for exploring an OIDC federation.")
@@ -123,13 +219,21 @@ def metadata(entity_id: str, verify: bool = False, **kwargs):
     if not value or value.endswith(".dot")
     else value + ".dot",
 )
+@click.option(
+    "--details",
+    help="Prints trustchains with additional details, including entity statements and expiration dates.",
+    is_flag=True,
+    default=False,
+)
 @common_options
-def trustchains(entity_id: str, ta: tuple[str], export: str | None, **kwargs):
+def trustchains(
+    entity_id: str, ta: tuple[str], export: str | None, details: bool, **kwargs
+):
     """
     Build trustchain for a given entity and print it to stdout.
     """
     chains = get_trustchains(entity_id, list(ta), export)
-    print_trustchains(chains)
+    print_trustchains(chains, details)
 
 
 @cli.command(
@@ -173,7 +277,7 @@ def federation_list(
     entity_type: str | None,
     trust_marked: bool,
     trust_mark_id: str | None,
-    **kwargs
+    **kwargs,
 ):
     """Lists all subordinates of a federation entity."""
     print_json(
@@ -190,7 +294,7 @@ def federation_list(
     "discovery",
     short_help="Discover all OPs in the federation available to a given RP.",
 )
-@click.argument("entity_id", metavar="ENTITY_ID")
+@click.argument("entity_id", metavar="RP_ID")
 @click.option(
     "--ta",
     "--trust-anchor",
@@ -219,7 +323,7 @@ def discovery(entity_id: str, ta: tuple[str], **kwargs):
 def resolve(entity_id: str, ta: str, **kwargs):
     """Resolve metadata and Trust Marks for an entity, given a trust anchor."""
     logger.warn("Not implemented yet")
-    # print_json(resolve_entity(entity_id, ta))
+    print_json(resolve_entity(entity_id, ta))
 
 
 # command to build the subtree in the OIDC federation for a given entity

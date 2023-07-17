@@ -112,23 +112,27 @@ def build_trustchains(
     resolver.resolve()
     if export:
         resolver.export(export)
-    return [
-        chain
-        for chain in resolver.chains()
-        if chain.contains_trust_anchors(trust_anchors)
-    ]
+    return resolver.chains()
 
 
 def print_json(data: dict):
     json.dump(data, click.get_text_stream("stdout"), indent=2)
 
 
-def print_trustchains(chains: list[trustchain.TrustChain]):
+def print_trustchains(chains: list[trustchain.TrustChain], details: bool):
     if len(chains) == 0:
         logger.warn("No trust chains found.")
         return
-    for chain in chains:
-        click.echo(chain)
+    if details:
+        for chain in chains:
+            print_json(chain.to_json())
+    else:
+        for chain in chains:
+            click.echo(chain)
+
+
+def resolve_entity(entity_id: str, trust_anchor: str) -> dict:
+    return {}
 
 
 def discover(entity_id: str, trust_anchors: list[str]) -> list[str]:
