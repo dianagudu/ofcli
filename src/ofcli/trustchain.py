@@ -33,7 +33,8 @@ class TrustChain:
         return {
             "chain": [
                 {
-                    "authority_id": link.get("iss"),
+                    "iss": link.get("iss"),
+                    "sub": link.get("sub"),
                     "entity_statement": link.to_jwt(),
                 }
                 for link in self._chain
