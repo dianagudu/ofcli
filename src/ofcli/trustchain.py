@@ -23,7 +23,7 @@ class TrustChain:
     def __str__(self) -> str:
         return (
             "* "
-            + " -> ".join([link.get("iss") or "" for link in self._chain])
+            + " -> ".join([link.get("iss") or "" for link in self._chain[:-1]])
             + " (expiring at "
             + datetime.datetime.fromtimestamp(self._exp).isoformat()
             + ")"
@@ -122,8 +122,8 @@ class TrustTree:
         """
         if len(self.authorities) == 0:
             if self.subordinate is None:
-                return []
-            return [[self.subordinate]]
+                return [[self.entity]]
+            return [[self.subordinate, self.entity]]
         chains = []
         for authority in self.authorities:
             if self.subordinate is None:
