@@ -323,17 +323,35 @@ def discovery(entity_id: str, ta: tuple[str], **kwargs):
 
 @cli.command(
     "resolve",
-    short_help="Resolve metadata and Trust Marks for an entity, given a trust anchor.",
+    short_help="Resolve metadata and Trust Marks for an entity, given a trust anchor and entity type.",
 )
 @click.argument("entity_id", metavar="ENTITY_ID")
 @click.option(
     "--ta", "--trust-anchor", help="Trust anchor ID", metavar="TA_ID", required=True
 )
+@click.option(
+    "--entity-type",
+    metavar="TYPE",
+    default=None,
+    required=True,
+    help="Entity type. Types: openid_relying_party, openid_provider, oauth_authorization_server, oauth_client, oauth_resource_server, federation_entity.",
+    type=click.Choice(
+        [
+            "openid_relying_party",
+            "openid_provider",
+            "oauth_authorization_server",
+            "oauth_client",
+            "oauth_resource_server",
+            "federation_entity",
+        ]
+    ),
+)
 @common_options
-def resolve(entity_id: str, ta: str, **kwargs):
+def resolve(entity_id: str, ta: str, entity_type: str, **kwargs):
     """Resolve metadata and Trust Marks for an entity, given a trust anchor."""
-    logger.warn("Not implemented yet")
-    print_json(resolve_entity(entity_id, ta))
+    metadata = resolve_entity(entity_id, ta, entity_type)
+    logger.debug("Resolved metadata: %s", metadata)
+    print_json(metadata)
 
 
 # command to build the subtree in the OIDC federation for a given entity

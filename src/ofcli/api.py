@@ -118,10 +118,16 @@ def discover(entity_id: str, tas: list[str] = []) -> list[str]:
     return utils.discover(entity_id, tas)
 
 
-def resolve_entity(entity_id: str, ta: str) -> dict:
+def resolve_entity(entity_id: str, ta: str, entity_type: str) -> dict:
     """Resolves an entity ID's metadata given a trust anchor.
 
     :param entity_id: The entity ID to resolve (URL).
+    :param ta: The trust anchor to use for resolving the entity ID.
+    :param entity_type: The entity type to resolve.
     :return: The resolved metadata.
     """
-    return utils.resolve_entity(entity_id, ta)
+    chains = utils.build_trustchains(entity_id, [ta], export=None)
+    if not chains:
+        raise Exception("Could not build trustchain to trust anchor.")
+    # TODO: select the shortest chain if more than one
+    return chains[0].get_metadata(entity_type)

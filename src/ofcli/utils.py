@@ -178,10 +178,6 @@ def print_trustchains(chains: list[trustchain.TrustChain], details: bool):
             click.echo(chain)
 
 
-def resolve_entity(entity_id: str, trust_anchor: str) -> dict:
-    return {}
-
-
 def discover(entity_id: str, trust_anchors: list[str]) -> list[str]:
     return []
 

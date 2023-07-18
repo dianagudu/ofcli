@@ -5,11 +5,14 @@ import pygraphviz
 from ofcli.message import EntityStatement
 from ofcli import utils
 from ofcli.logging import logger
+from ofcli.policy import gather_policies, apply_policy
 
 
 class TrustChain:
     _chain: list[EntityStatement]
     _exp: int
+    _combined_policy: dict[str, dict]
+    _metadata: dict[str, dict]
 
     def __init__(self, chain: list[EntityStatement]) -> None:
         self._chain = chain
@@ -19,8 +22,26 @@ class TrustChain:
             self._chain,
             0,
         )
+        if len(self._chain) == 0:
+            return
+        self._combined_policy = {}
+        self._metadata = {}
+        for entity_type in self._chain[0].get("metadata", {}).keys():
+            self._combined_policy[entity_type] = gather_policies(
+                self._chain, entity_type
+            )
+            self._metadata[entity_type] = apply_policy(
+                self._chain[0].get("metadata", {})[entity_type], self._combined_policy
+            )
+            logger.debug(
+                f"Combined policy for {entity_type}: {self._combined_policy[entity_type]}"
+            )
+            logger.debug(
+                f"Metadata for {entity_type} after applying policies: {self._metadata[entity_type]}"
+            )
 
     def __str__(self) -> str:
+        """Prints the entity IDs in the chain. The last one is the trust anchor."""
         return (
             "* "
             + " -> ".join([link.get("iss") or "" for link in self._chain[:-1]])
@@ -40,13 +61,15 @@ class TrustChain:
                 for link in self._chain
             ],
             "exp": datetime.datetime.fromtimestamp(self._exp).isoformat(),
+            # "combined_policy": self.combined_metadata_policy("openid_provider"),
+            # "metadata": self.apply_policy("openid_provider"),
         }
 
-    def combined_metadata_policy(self) -> dict:
-        pass
+    def get_metadata(self, entity_type: str) -> dict:
+        return self._metadata.get(entity_type).to_dict()
 
-    def apply_policy(self) -> dict:
-        pass
+    def get_combined_policy(self) -> dict:
+        return self._combined_policy
 
 
 class TrustTree:
@@ -179,8 +202,3 @@ class TrustChainResolver:
         if self.trust_tree:
             return self.trust_tree.verify_signatures(self.trust_anchors)
         return False
-
-    def apply_policy(self) -> dict:
-        if self.trust_tree:
-            return self._apply_policy(self.trust_tree)
-        return {}
