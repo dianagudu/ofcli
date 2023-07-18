@@ -27,6 +27,8 @@ class TrustChain:
         self._combined_policy = {}
         self._metadata = {}
         for entity_type in self._chain[0].get("metadata", {}).keys():
+            if not self._chain[0].get("metadata", {}).get(entity_type):
+                continue
             self._combined_policy[entity_type] = gather_policies(
                 self._chain, entity_type
             )
@@ -61,8 +63,6 @@ class TrustChain:
                 for link in self._chain
             ],
             "exp": datetime.datetime.fromtimestamp(self._exp).isoformat(),
-            # "combined_policy": self.combined_metadata_policy("openid_provider"),
-            # "metadata": self.apply_policy("openid_provider"),
         }
 
     def get_metadata(self, entity_type: str) -> dict:
@@ -145,7 +145,7 @@ class TrustTree:
         """
         if len(self.authorities) == 0:
             if self.subordinate is None:
-                return [[self.entity]]
+                return []
             return [[self.subordinate, self.entity]]
         chains = []
         for authority in self.authorities:
@@ -193,6 +193,7 @@ class TrustChainResolver:
     def chains(self) -> list[TrustChain]:
         if self.trust_tree:
             chains = self.trust_tree.chains()
+            logger.debug(f"Found {len(chains)} trust chains.")
             for i, chain in enumerate(chains):
                 chains[i] = [self.trust_tree.entity] + chain
             return [TrustChain(chain) for chain in chains]

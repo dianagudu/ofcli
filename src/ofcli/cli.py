@@ -318,7 +318,7 @@ def federation_list(
 def discovery(entity_id: str, ta: tuple[str], **kwargs):
     """Discover all OPs in the federation available to a given RP."""
     logger.warn("Not implemented yet")
-    # click.echo(discover(entity_id, list(ta)))
+    click.echo(discover(entity_id, list(ta)))
 
 
 @cli.command(
