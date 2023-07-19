@@ -302,7 +302,7 @@ def federation_list(
 
 @cli.command(
     "discovery",
-    short_help="Discover all OPs in the federation available to a given RP.",
+    short_help="Discover all OPs in the federation available to a given RP. If no trust anchor is specified, all possible trust anchors will be used.",
 )
 @click.argument("entity_id", metavar="RP_ID")
 @click.option(
@@ -317,8 +317,7 @@ def federation_list(
 @common_options
 def discovery(entity_id: str, ta: tuple[str], **kwargs):
     """Discover all OPs in the federation available to a given RP."""
-    logger.warn("Not implemented yet")
-    click.echo(discover(entity_id, list(ta)))
+    print_json(discover(entity_id, list(ta)))
 
 
 @cli.command(

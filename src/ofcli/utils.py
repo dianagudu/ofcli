@@ -11,6 +11,7 @@ from cryptojwt.jws.jws import factory
 from ofcli import trustchain
 from ofcli.logging import logger
 from ofcli import __version__ as ofcli_version, __name__ as ofcli_name
+from ofcli.message import EntityStatement
 
 VERIFY_SSL = True
 
@@ -152,6 +153,44 @@ def fetch_entity_statement(entity_id: str, issuer: str) -> dict:
     )
 
 
+def get_subordinates(
+    entity: EntityStatement,
+    entity_type: str | None = None,
+    trust_marked: bool = False,
+    trust_mark_id: str | None = None,
+) -> list[str]:
+    metadata = entity.get("metadata")
+    if not metadata:
+        raise Exception("No metadata found in entity configuration.")
+    try:
+        le = metadata["federation_entity"]
+    except KeyError:
+        raise Exception("Leaf entities cannot have subordinates.")
+    try:
+        list_url = le["federation_list_endpoint"]
+    except KeyError:
+        raise Exception("No federation_list_endpoint found in metadata!")
+
+    params = {}
+    if entity_type:
+        params["entity_type"] = entity_type
+    if trust_marked:
+        params["trust_marked"] = trust_marked
+    if trust_mark_id:
+        params["trust_mark_id"] = trust_mark_id
+
+    url = add_query_params(list_url, params)
+    response = requests.request("GET", url, verify=VERIFY_SSL)
+
+    if response.status_code != 200:
+        raise ValueError(
+            "Could not fetch subordinates from %s. Status code: %s"
+            % (url, response.status_code)
+        )
+
+    return list(json.loads(response.text))
+
+
 def build_trustchains(
     entity_id: str, trust_anchors: list[str], export: str | None
 ) -> list[trustchain.TrustChain]:
@@ -162,7 +201,7 @@ def build_trustchains(
     return resolver.chains()
 
 
-def print_json(data: dict):
+def print_json(data: dict | list):
     json.dump(data, click.get_text_stream("stdout"), indent=2)
 
 
@@ -178,8 +217,58 @@ def print_trustchains(chains: list[trustchain.TrustChain], details: bool):
             click.echo(chain)
 
 
-def discover(entity_id: str, trust_anchors: list[str]) -> list[str]:
-    return []
+class FedTree:
+    entity: EntityStatement
+    subordinates: list["FedTree"]
+
+    def __init__(self, entity: EntityStatement) -> None:
+        self.entity = entity
+        self.subordinates = []
+
+    def discover(self) -> None:
+        # probably should also verify things here
+        logger.debug("Discovering subordinates of %s" % self.entity.get("sub"))
+        if not self.entity.get("metadata"):
+            raise Exception("No metadata found in entity configuration.")
+        try:
+            subordinates = get_subordinates(self.entity)
+            for sub in subordinates:
+                subordinate = FedTree(
+                    EntityStatement(**get_self_signed_entity_configuration(sub))
+                )
+                subordinate.discover()
+                self.subordinates.append(subordinate)
+        except Exception as e:
+            logger.debug("Could not fetch subordinates, likely a leaf entity: %s" % e)
+
+    def serialize(self) -> dict:
+        return {
+            "entity": self.entity.get("sub"),
+            "subordinates": [sub.serialize() for sub in self.subordinates],
+        }
+
+    def get_entities(self, entity_type: str) -> list[str]:
+        entities = []
+        md = self.entity.get("metadata")
+        if md and md.get(entity_type):
+            entities.append(self.entity.get("sub"))
+        for sub in self.subordinates:
+            entities += sub.get_entities(entity_type)
+        return entities
+
+
+def discover_ops(trust_anchors: list[EntityStatement]) -> list[str]:
+    """Discovers all OPs in the federations of the given trust anchors.
+
+    :param trust_anchors: The trust anchors to use.
+    :return: A list of OP entity IDs.
+    """
+    ops = []
+    for ta in trust_anchors:
+        subtree = FedTree(ta)
+        subtree.discover()
+        ops += subtree.get_entities("openid_provider")
+    return ops
 
 
 # def print_trustchains(trustchain: dict, indent: int = 0):

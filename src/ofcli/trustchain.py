@@ -2,7 +2,7 @@ import datetime
 from functools import reduce
 import pygraphviz
 
-from ofcli.message import EntityStatement
+from ofcli.message import EntityStatement, Metadata, MetadataPolicy
 from ofcli import utils
 from ofcli.logging import logger
 from ofcli.policy import gather_policies, apply_policy
@@ -65,8 +65,17 @@ class TrustChain:
             "exp": datetime.datetime.fromtimestamp(self._exp).isoformat(),
         }
 
+    def get_trust_anchor(self) -> EntityStatement:
+        # if len(self._chain) == 0:
+        #     return None
+        # return last link in chain
+        return self._chain[-1]
+
     def get_metadata(self, entity_type: str) -> dict:
-        return self._metadata.get(entity_type).to_dict()
+        md = self._metadata.get(entity_type)
+        if not md:
+            raise Exception(f"No metadata found for entity type {entity_type}")
+        return Metadata(**md).to_dict()
 
     def get_combined_policy(self) -> dict:
         return self._combined_policy

@@ -1,13 +1,10 @@
 """
 API for OIDC Federation exploration.
 """
-
-import requests
-import json
-
 from ofcli import utils
 from ofcli.message import EntityStatement, Metadata
 from ofcli.trustchain import TrustChain
+from ofcli.logging import logger
 
 
 def get_entity_configuration(entity_id: str, verify: bool = False) -> dict:
@@ -72,35 +69,9 @@ def list_subordinates(
     entity_type: str | None = None,
     trust_marked: bool = False,
     trust_mark_id: str | None = None,
-) -> dict:
-    metadata = get_entity_metadata(entity_id=entity_id)
-    try:
-        le = metadata["federation_entity"]
-    except KeyError:
-        raise Exception("Leaf entities cannot have subordinates.")
-    try:
-        list_url = le["federation_list_endpoint"]
-    except KeyError:
-        raise Exception("No federation_list_endpoint found in metadata!")
-
-    params = {}
-    if entity_type:
-        params["entity_type"] = entity_type
-    if trust_marked:
-        params["trust_marked"] = trust_marked
-    if trust_mark_id:
-        params["trust_mark_id"] = trust_mark_id
-
-    url = utils.add_query_params(list_url, params)
-    response = requests.request("GET", url, verify=utils.VERIFY_SSL)
-
-    if response.status_code != 200:
-        raise ValueError(
-            "Could not fetch subordinates from %s. Status code: %s"
-            % (url, response.status_code)
-        )
-
-    return json.loads(response.text)
+) -> list[str]:
+    entity = EntityStatement(**utils.get_self_signed_entity_configuration(entity_id))
+    return utils.get_subordinates(entity, entity_type, trust_marked, trust_mark_id)
 
 
 def discover(entity_id: str, tas: list[str] = []) -> list[str]:
@@ -110,12 +81,24 @@ def discover(entity_id: str, tas: list[str] = []) -> list[str]:
     :param tas: The trust anchors to use for discovery. Defaults to [].
     :return: The discovered OPs.
     """
-
     metadata = get_entity_metadata(entity_id=entity_id)
     # check if it is an openid_relying_party
     if not metadata.get("openid_relying_party"):
         raise Exception("Entity is not an OpenID Relying Party.")
-    return utils.discover(entity_id, tas)
+    ta_entities = []
+    # if no trust anchors are given, infer them from building the trustchains
+    if len(tas) == 0:
+        chains = utils.build_trustchains(entity_id, [], export=None)
+        if len(chains) == 0:
+            raise Exception("Could not find any trust anchors.")
+        for chain in chains:
+            ta_entities.append(chain.get_trust_anchor())
+    else:
+        for ta in tas:
+            ta_entities.append(
+                EntityStatement(**utils.get_self_signed_entity_configuration(ta))
+            )
+    return utils.discover_ops(ta_entities)
 
 
 def resolve_entity(entity_id: str, ta: str, entity_type: str) -> dict:
@@ -127,7 +110,7 @@ def resolve_entity(entity_id: str, ta: str, entity_type: str) -> dict:
     :return: The resolved metadata.
     """
     chains = utils.build_trustchains(entity_id, [ta], export=None)
-    if not chains:
+    if len(chains) == 0:
         raise Exception("Could not build trustchain to trust anchor.")
     # TODO: select the shortest chain if more than one
     return chains[0].get_metadata(entity_type)
