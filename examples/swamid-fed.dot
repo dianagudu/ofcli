@@ -1,0 +1,109 @@
+strict digraph "Subfederation for https://swamid.fedservice.lh" {
+	"https://swamid.fedservice.lh"	[comment="{'sub': 'https://swamid.fedservice.lh', 'metadata': {'federation_entity': {'federation_fetch_endpoint': 'https://swamid.fedservice.lh/\
+fetch', 'federation_list_endpoint': 'https://swamid.fedservice.lh/list'}}, 'jwks': {'keys': [{'kty': 'RSA', 'use': 'sig', 'kid': '\
+d1lnYl9KdHV6em40M0VrX3lEbTRvX3pIRVZma1JNU3lvN3d0c1FtaXVVMA', 'e': 'AQAB', 'n': 'wvaJkC9SPBivt9qclx0-0CAEhgTJmzUhehU7E2KoTKNMxP9EvNrz9HvGUfUXibs5LmtIEo6DNGJmtgKJDbjK8vOl0m4kAFJM-Zg9rMUm1ULvjY8bJ5LdUXfswvsUpDa1IkbZoZerYM_\
+XEg5c_B1Dx-2TjJsXrwnU7hRs18zydW_B462ZYxa2YilLwqONFhBKthMka3GcdClQVEytOW28cgiln1gdSXMdzoI2MuLoSzLzBae4X5auQa0Uztrbd9xSIEXrpCkd4ucFwCQJ9YdmRRole3TU7-C1f_\
+hwz-K6dSAt24Nak97OP_CgpujKLsxOVsegTAUrmuQsKUvhKdjGLw'}, {'kty': 'EC', 'use': 'sig', 'kid': 'MFAtd24wMmhBcGlnd3BIbGtuX3JTOGZWZjd6dDVaajM3cXdCeXp2QmdSRQ', '\
+crv': 'P-256', 'x': 'OmGHBjV_qndXFOS5hXhZUyhEvnAH5LTyob4f5N_KQFw', 'y': 'I8lKlzoSeDZL-atTjNUpVsuciKPo_FLkh6WVLPLb3as'}, {'kty': '\
+RSA', 'use': 'sig', 'kid': 'd1lnYl9KdHV6em40M0VrX3lEbTRvX3pIRVZma1JNU3lvN3d0c1FtaXVVMA', 'e': 'AQAB', 'n': 'wvaJkC9SPBivt9qclx0-0CAEhgTJmzUhehU7E2KoTKNMxP9EvNrz9HvGUfUXibs5LmtIEo6DNGJmtgKJDbjK8vOl0m4kAFJM-Zg9rMUm1ULvjY8bJ5LdUXfswvsUpDa1IkbZoZerYM_\
+XEg5c_B1Dx-2TjJsXrwnU7hRs18zydW_B462ZYxa2YilLwqONFhBKthMka3GcdClQVEytOW28cgiln1gdSXMdzoI2MuLoSzLzBae4X5auQa0Uztrbd9xSIEXrpCkd4ucFwCQJ9YdmRRole3TU7-C1f_\
+hwz-K6dSAt24Nak97OP_CgpujKLsxOVsegTAUrmuQsKUvhKdjGLw'}, {'kty': 'EC', 'use': 'sig', 'kid': 'MFAtd24wMmhBcGlnd3BIbGtuX3JTOGZWZjd6dDVaajM3cXdCeXp2QmdSRQ', '\
+crv': 'P-256', 'x': 'OmGHBjV_qndXFOS5hXhZUyhEvnAH5LTyob4f5N_KQFw', 'y': 'I8lKlzoSeDZL-atTjNUpVsuciKPo_FLkh6WVLPLb3as'}]}, 'iss': '\
+https://swamid.fedservice.lh', 'iat': 1691533950, 'exp': 1691620350}",
+		fillcolor="#5B317B",
+		fontcolor=white,
+		style=filled];
+	"https://umu.fedservice.lh"	[comment="{'sub': 'https://umu.fedservice.lh', 'metadata': {'federation_entity': {'federation_fetch_endpoint': 'https://umu.fedservice.lh/\
+fetch', 'federation_list_endpoint': 'https://umu.fedservice.lh/list'}}, 'authority_hints': ['https://seid.fedservice.lh', 'https://\
+swamid.fedservice.lh'], 'jwks': {'keys': [{'kty': 'RSA', 'use': 'sig', 'kid': 'a01jT1R1eW14aGlXTHFfazRaQkJNMUtmQ05neXh4Z0t4YnIyVEZkbi00UQ', '\
+e': 'AQAB', 'n': 'tR81LoshFlfbexn6MhmjFvVrA5RE1SMUFy3JH9prhuce-_H3yhOKy8xAOjXxww1Goh8KoXkuTITPwJzkaKQfsqr7n-o6SEVnRg09iZn3TFh5ogxS_\
+oJV1TwWUYgnQKOD8QVBLGl3YvPabXNd0Q1OZmrQI1UsRgQWWBf6dOCHOe6CdMGqokQsJgRqQ7F8ze4vr_aTpRVqZyeNinFFrJwapGwGksJ_M_OWjcqt-1T0ePprldp_8a5BWbU-ASZ1BOKnPnldufssy3xc_\
+IRFFSrsYlULn3iQloCIIuoMcmlp5AAnBrE7yl5_r-l4_QM5nEf6wAdWp-j8in7I6gomDcQk7w'}, {'kty': 'EC', 'use': 'sig', 'kid': 'dFloNTNYdjBIYi1jR3BDdEZDaC10a1VkMUVsOExIbzhVNUdHSFkxczJJcw', '\
+crv': 'P-256', 'x': '-HUEtqV8jP138Zn9_0DJQ_nYslfgpC-mQXXWqEX5d8k', 'y': '4oAASQM4Bl22Q37JBDw-lQb4UCOVOZAKvLD_mc77MMk'}, {'kty': '\
+RSA', 'use': 'sig', 'kid': 'a01jT1R1eW14aGlXTHFfazRaQkJNMUtmQ05neXh4Z0t4YnIyVEZkbi00UQ', 'e': 'AQAB', 'n': 'tR81LoshFlfbexn6MhmjFvVrA5RE1SMUFy3JH9prhuce-_\
+H3yhOKy8xAOjXxww1Goh8KoXkuTITPwJzkaKQfsqr7n-o6SEVnRg09iZn3TFh5ogxS_oJV1TwWUYgnQKOD8QVBLGl3YvPabXNd0Q1OZmrQI1UsRgQWWBf6dOCHOe6CdMGqokQsJgRqQ7F8ze4vr_\
+aTpRVqZyeNinFFrJwapGwGksJ_M_OWjcqt-1T0ePprldp_8a5BWbU-ASZ1BOKnPnldufssy3xc_IRFFSrsYlULn3iQloCIIuoMcmlp5AAnBrE7yl5_r-l4_QM5nEf6wAdWp-j8in7I6gomDcQk7w'}, {'\
+kty': 'EC', 'use': 'sig', 'kid': 'dFloNTNYdjBIYi1jR3BDdEZDaC10a1VkMUVsOExIbzhVNUdHSFkxczJJcw', 'crv': 'P-256', 'x': '-HUEtqV8jP138Zn9_\
+0DJQ_nYslfgpC-mQXXWqEX5d8k', 'y': '4oAASQM4Bl22Q37JBDw-lQb4UCOVOZAKvLD_mc77MMk'}]}, 'iss': 'https://umu.fedservice.lh', 'iat': 1691533950, '\
+exp': 1691620350}",
+		fillcolor="#C50679",
+		fontcolor=white,
+		style=filled];
+	"https://swamid.fedservice.lh" -> "https://umu.fedservice.lh";
+	"https://lu.fedservice.lh"	[comment="{'sub': 'https://lu.fedservice.lh', 'metadata': {'federation_entity': {'federation_fetch_endpoint': 'https://lu.fedservice.lh/fetch', '\
+federation_list_endpoint': 'https://lu.fedservice.lh/list'}}, 'authority_hints': ['https://seid.fedservice.lh', 'https://swamid.fedservice.lh'], '\
+jwks': {'keys': [{'kty': 'RSA', 'use': 'sig', 'kid': 'LWh3UzFWTE0zR0xiT2RqemJ0TUxXMzFHd3hhaDJDMldTWTJzSnJYU1liYw', 'e': 'AQAB', '\
+n': 'ok3n24E63Lu1d4NoArTYkrseuIp1-IigN4tXhq1DO3aQMJ89wQHjkNpdlYsxHS9U_aRlhwW7BXFlFsrS39th9v8aDSZ1vT3aOucVRRfyDdxM70dVjKifBa4XTOTb9igrvdpBfUQNI0n4iz8aC7mGZbgCYzu9ZXZHGeCLUP6fQoMRDVeTrSsRqidKNiBXE1aGpoTbgAX3zCN_\
+z5MccBrsMpT5ChQ2GN-wOFZfEyGvj2e2sGVDTJh4lNFFk1pb3BDuff3zHuDQZXUTBhLeQuYgoxREL2Hvr-CMgTaU5AsWWi1lTy-COmb5msdyLI3sQGTorRsQ_hvfOhs4FeFJTfw6Gw'}, {'\
+kty': 'EC', 'use': 'sig', 'kid': 'RnB3dmFQdnFRMWZvUFlPMTQyOUowNVBZM0VEbEFReE5ZWW85Z3lpN0t0aw', 'crv': 'P-256', 'x': 'T-doDQDRLpQ_\
+3pZhd4eUCdup9Kg-M_Nb2zo921C2Yzc', 'y': 'TPcvUgtKktxTaK-4GK2_F6PD2OT1gwxu-WpxC_gFCuw'}, {'kty': 'RSA', 'use': 'sig', 'kid': 'LWh3UzFWTE0zR0xiT2RqemJ0TUxXMzFHd3hhaDJDMldTWTJzSnJYU1liYw', '\
+e': 'AQAB', 'n': 'ok3n24E63Lu1d4NoArTYkrseuIp1-IigN4tXhq1DO3aQMJ89wQHjkNpdlYsxHS9U_aRlhwW7BXFlFsrS39th9v8aDSZ1vT3aOucVRRfyDdxM70dVjKifBa4XTOTb9igrvdpBfUQNI0n4iz8aC7mGZbgCYzu9ZXZHGeCLUP6fQoMRDVeTrSsRqidKNiBXE1aGpoTbgAX3zCN_\
+z5MccBrsMpT5ChQ2GN-wOFZfEyGvj2e2sGVDTJh4lNFFk1pb3BDuff3zHuDQZXUTBhLeQuYgoxREL2Hvr-CMgTaU5AsWWi1lTy-COmb5msdyLI3sQGTorRsQ_hvfOhs4FeFJTfw6Gw'}, {'\
+kty': 'EC', 'use': 'sig', 'kid': 'RnB3dmFQdnFRMWZvUFlPMTQyOUowNVBZM0VEbEFReE5ZWW85Z3lpN0t0aw', 'crv': 'P-256', 'x': 'T-doDQDRLpQ_\
+3pZhd4eUCdup9Kg-M_Nb2zo921C2Yzc', 'y': 'TPcvUgtKktxTaK-4GK2_F6PD2OT1gwxu-WpxC_gFCuw'}]}, 'iss': 'https://lu.fedservice.lh', 'iat': \
+1691533950, 'exp': 1691620350}",
+		fillcolor="#C50679",
+		fontcolor=white,
+		style=filled];
+	"https://swamid.fedservice.lh" -> "https://lu.fedservice.lh";
+	"https://op.fedservice.lh"	[comment="{'sub': 'https://op.fedservice.lh', 'metadata': {'openid_provider': {'version': '3.0', 'token_endpoint_auth_methods_supported': ['\
+client_secret_post', 'client_secret_basic', 'client_secret_jwt', 'private_key_jwt'], 'claims_parameter_supported': True, 'request_\
+parameter_supported': True, 'request_uri_parameter_supported': True, 'require_request_uri_registration': True, 'grant_types_supported': ['\
+authorization_code', 'implicit', 'urn:ietf:params:oauth:grant-type:jwt-bearer', 'refresh_token'], 'subject_types_supported': ['public', '\
+pairwise'], 'federation_registration_endpoint': 'https://op.fedservice.lh/registration', 'introspection_endpoint': 'https://op.fedservice.lh/\
+introspection', 'response_types_supported': ['code', 'token', 'id_token', 'code token', 'code id_token', 'id_token token', 'code \
+id_token token', 'none'], 'response_modes_supported': ['query', 'fragment', 'form_post'], 'request_object_signing_alg_values_supported': ['\
+RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512', 'HS256', 'HS384', 'HS512', 'PS256', 'PS384', 'PS512'], 'request_object_encryption_\
+alg_values_supported': ['RSA-OAEP', 'RSA-OAEP-256', 'A128KW', 'A192KW', 'A256KW', 'ECDH-ES', 'ECDH-ES+A128KW', 'ECDH-ES+A192KW', '\
+ECDH-ES+A256KW'], 'request_object_encryption_enc_values_supported': ['A128CBC-HS256', 'A192CBC-HS384', 'A256CBC-HS512', 'A128GCM', '\
+A192GCM', 'A256GCM'], 'claim_types_supported': ['normal', 'aggregated', 'distributed'], 'authorization_endpoint': 'https://op.fedservice.lh/\
+authorization', 'pushed_authorization_request_endpoint': 'https://op.fedservice.lh/pushed_authorization', 'token_endpoint_auth_signing_\
+alg_values_supported': ['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512', 'HS256', 'HS384', 'HS512', 'PS256', 'PS384', 'PS512'], '\
+token_endpoint': 'https://op.fedservice.lh/token', 'userinfo_signing_alg_values_supported': ['RS256', 'RS384', 'RS512', 'ES256', '\
+ES384', 'ES512', 'HS256', 'HS384', 'HS512', 'PS256', 'PS384', 'PS512'], 'userinfo_encryption_alg_values_supported': ['RSA-OAEP', '\
+RSA-OAEP-256', 'A128KW', 'A192KW', 'A256KW', 'ECDH-ES', 'ECDH-ES+A128KW', 'ECDH-ES+A192KW', 'ECDH-ES+A256KW'], 'userinfo_encryption_\
+enc_values_supported': ['A128CBC-HS256', 'A192CBC-HS384', 'A256CBC-HS512', 'A128GCM', 'A192GCM', 'A256GCM'], 'client_authn_method': ['\
+bearer_header', 'bearer_body'], 'userinfo_endpoint': 'https://op.fedservice.lh/userinfo', 'frontchannel_logout_supported': True, '\
+frontchannel_logout_session_supported': True, 'backchannel_logout_supported': True, 'backchannel_logout_session_supported': True, '\
+check_session_iframe': 'https://op.fedservice.lh/check_session_iframe', 'end_session_endpoint': 'https://op.fedservice.lh/session', '\
+issuer': 'https://op.fedservice.lh', 'acr_values_supported': ['oidcop.user_authn.authn_context.INTERNETPROTOCOLPASSWORD'], 'jwks_\
+uri': 'https://op.fedservice.lh/static/jwks.json', 'scopes_supported': ['address', 'research_and_scholarship', 'offline_access', '\
+phone', 'email', 'openid', 'profile'], 'claims_supported': ['gender', 'email', 'phone_number_verified', 'address', 'middle_name', '\
+iss', 'email_verified', 'eduperson_scoped_affiliation', 'website', 'name', 'locale', 'sub', 'family_name', 'preferred_username', '\
+given_name', 'birthdate', 'zoneinfo', 'nickname', 'updated_at', 'picture', 'profile', 'phone_number'], 'client_registration_authn_\
+methods_supported': {'ar': ['request_object']}, 'id_token_signing_alg_values_supported': ['RS256', 'RS384', 'RS512', 'ES256', 'ES384', '\
+ES512', 'HS256', 'HS384', 'HS512', 'PS256', 'PS384', 'PS512'], 'id_token_encryption_alg_values_supported': ['RSA-OAEP', 'RSA-OAEP-256', '\
+A128KW', 'A192KW', 'A256KW', 'ECDH-ES', 'ECDH-ES+A128KW', 'ECDH-ES+A192KW', 'ECDH-ES+A256KW'], 'id_token_encryption_enc_values_supported': ['\
+A128CBC-HS256', 'A192CBC-HS384', 'A256CBC-HS512', 'A128GCM', 'A192GCM', 'A256GCM']}}, 'authority_hints': ['https://trust-anchor.spid-cie.fedservice.lh/', '\
+https://umu.fedservice.lh'], 'jwks': {'keys': [{'kty': 'RSA', 'use': 'sig', 'kid': 'SDVTeVVRTkJLVlpBNHRVVEtlYm1EemlUNFFFSVQ1ZG5TdEJ0QUJGcTJ1Yw', '\
+n': 'ry-AANLG9-yH_sAObBMlaWOYqxlKYGSBEiKPit6Gsv7d1Na0eyE668MzUioQFeO4qm1liKG9O--aS9FiFxV_mpXEGHwxD2yScnsm6DTbxtwYZDOkgWx8gf1dECouZFN1Rxh2L2H0GPgiGYF3idwVpoxHWA6q0EkIGkjdRm8XLXBhpRxQ6Gvsk3HhT2k51FqbL6tP1CgaHmI_\
+yyICo9h8HdDfBVyJN-lyHTSzLcujU1bPsptKH5pMqk71SzTED24a3xttjezDhSLYdmmQQmsBkKxkdCLaK-OY5FWF00cz_dalN6l4z9HoAnxfrIT-tvqPIyuJFXoF0byl1t4-Okcgcw', '\
+e': 'AQAB'}, {'kty': 'EC', 'use': 'sig', 'kid': 'dDZXZG5UZnhoc2hmRC1aY3E0NTI5UHAxMF93ZlYyTTh6ck1zcmNQbWVGcw', 'crv': 'P-256', 'x': '\
+uAS1h-SVt_WOUL8k6v8b7zWzxLJoTdz67-BKzAlFRwc', 'y': '53x75U1ADQ50F6cDi0cvBBbzJqFYosmPOAZpHjqDrOo'}, {'kty': 'RSA', 'use': 'sig', '\
+kid': 'SDVTeVVRTkJLVlpBNHRVVEtlYm1EemlUNFFFSVQ1ZG5TdEJ0QUJGcTJ1Yw', 'n': 'ry-AANLG9-yH_sAObBMlaWOYqxlKYGSBEiKPit6Gsv7d1Na0eyE668MzUioQFeO4qm1liKG9O--aS9FiFxV_\
+mpXEGHwxD2yScnsm6DTbxtwYZDOkgWx8gf1dECouZFN1Rxh2L2H0GPgiGYF3idwVpoxHWA6q0EkIGkjdRm8XLXBhpRxQ6Gvsk3HhT2k51FqbL6tP1CgaHmI_yyICo9h8HdDfBVyJN-lyHTSzLcujU1bPsptKH5pMqk71SzTED24a3xttjezDhSLYdmmQQmsBkKxkdCLaK-OY5FWF00cz_\
+dalN6l4z9HoAnxfrIT-tvqPIyuJFXoF0byl1t4-Okcgcw', 'e': 'AQAB'}, {'kty': 'EC', 'use': 'sig', 'kid': 'dDZXZG5UZnhoc2hmRC1aY3E0NTI5UHAxMF93ZlYyTTh6ck1zcmNQbWVGcw', '\
+crv': 'P-256', 'x': 'uAS1h-SVt_WOUL8k6v8b7zWzxLJoTdz67-BKzAlFRwc', 'y': '53x75U1ADQ50F6cDi0cvBBbzJqFYosmPOAZpHjqDrOo'}]}, 'iss': '\
+https://op.fedservice.lh', 'iat': 1691533950, 'exp': 1691620350}",
+		fillcolor="#01425E",
+		fontcolor=white,
+		style=filled];
+	"https://umu.fedservice.lh" -> "https://op.fedservice.lh";
+	"https://auto.fedservice.lh"	[comment="{'sub': 'https://auto.fedservice.lh', 'metadata': {'openid_relying_party': {'application_type': 'web', 'response_types': ['code'], '\
+contacts': ['ops@example.com'], 'token_endpoint_auth_method': 'private_key_jwt', 'redirect_uris': ['https://auto.fedservice.lh/authz_\
+cb'], 'jwks_uri': 'https://auto.fedservice.lh/static/jwks.json', 'grant_types': ['authorization_code']}, 'federation_entity': {'\
+federation_fetch_endpoint': 'https://auto.fedservice.lh/fetch'}}, 'authority_hints': ['https://lu.fedservice.lh', 'https://trust-anchor.spid-cie.fedservice.lh/'], '\
+jwks': {'keys': [{'kty': 'RSA', 'use': 'sig', 'kid': 'THVtSjRiRHlaRTdqOXBMY3pyQ2ZOem5yTzZLOXlSME5vNENOMmlXOWQtWQ', 'n': 'mvzv3FSiYv58FFiKTv61jub9uG9oxHHHxRyCCcXoQogclHtVmXS-D9qWKa81v4TLVwX9helWRaaKKiIMu-3CGjkYyV7_\
+aN9ez9bvNYY-PtKJJ43Eix8olEyZTLL_SL7jGAHXag4D9WPGKiTL3tk0_jrgN96jr4sPVBbGGDhroOH7eVD8m9hiIFyKuTP7KdYJm0FERTYHFCA724z2NuSlpsOIxL4RbuRw3pOt043cX94NpMkn6iNgKkBrYg6XIssBCaHXr3RCri16p658iy0ui8yA7ubxJSCA19TKH32eJ2LRa-5Tm8z3s8zQy87DlU94BiU8pkl53FRQmI00X-1USQ', '\
+e': 'AQAB'}, {'kty': 'EC', 'use': 'sig', 'kid': 'SnQ2b0pudWJvdWxzZk5KVUdEUDgyTjQ4NGZWSWVBN1dBUFVEZW9YNlp2SQ', 'crv': 'P-256', 'x': '\
+tm-ln5tOIRhTiScX1heyFYUs_qa441-DVs0Jy_xkeY8', 'y': 'PCPskRzWcbC8d23BUh0tbGlefZBs33IaH6WQqe8ClUQ'}, {'kty': 'RSA', 'use': 'sig', '\
+kid': 'THVtSjRiRHlaRTdqOXBMY3pyQ2ZOem5yTzZLOXlSME5vNENOMmlXOWQtWQ', 'n': 'mvzv3FSiYv58FFiKTv61jub9uG9oxHHHxRyCCcXoQogclHtVmXS-D9qWKa81v4TLVwX9helWRaaKKiIMu-3CGjkYyV7_\
+aN9ez9bvNYY-PtKJJ43Eix8olEyZTLL_SL7jGAHXag4D9WPGKiTL3tk0_jrgN96jr4sPVBbGGDhroOH7eVD8m9hiIFyKuTP7KdYJm0FERTYHFCA724z2NuSlpsOIxL4RbuRw3pOt043cX94NpMkn6iNgKkBrYg6XIssBCaHXr3RCri16p658iy0ui8yA7ubxJSCA19TKH32eJ2LRa-5Tm8z3s8zQy87DlU94BiU8pkl53FRQmI00X-1USQ', '\
+e': 'AQAB'}, {'kty': 'EC', 'use': 'sig', 'kid': 'SnQ2b0pudWJvdWxzZk5KVUdEUDgyTjQ4NGZWSWVBN1dBUFVEZW9YNlp2SQ', 'crv': 'P-256', 'x': '\
+tm-ln5tOIRhTiScX1heyFYUs_qa441-DVs0Jy_xkeY8', 'y': 'PCPskRzWcbC8d23BUh0tbGlefZBs33IaH6WQqe8ClUQ'}]}, 'iss': 'https://auto.fedservice.lh', '\
+iat': 1691533950, 'exp': 1691620350}",
+		fillcolor="#DD4C1A",
+		fontcolor=white,
+		style=filled];
+	"https://lu.fedservice.lh" -> "https://auto.fedservice.lh";
+}

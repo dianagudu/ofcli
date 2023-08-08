@@ -30,12 +30,15 @@ Options:
   --help             Show this message and exit.
 
 Commands:
-  discovery    Discover all OPs in the federation available to a given RP.
+  discovery    Discover all OPs in the federation available to a given RP. If
+               no trust anchor is specified, all possible trust anchors will
+               be used.
   entity       Commands for working with an entity in an OIDC federation.
   fetch        Fetch an entity statement
   list         List all subordinate entities.
   resolve      Resolve metadata and Trust Marks for an entity, given a trust
-               anchor.
+               anchor and entity type.
+  subtree      Discover federation subtree using given entity as root.
   trustchains  Builds all trustchains for a given entity and prints them.
 ```
 
@@ -63,6 +66,62 @@ Options:
   --version                   Print program version and exit.
   --help                      Show this message and exit.
 ```
+
+### Examples
+
+Following, various example outputs.
+
+1. Trustchains
+
+```bash
+$ ofcli trustchains https://op.fedservice.lh --export op-chains
+* https://op.fedservice.lh -> https://trust-anchor.spid-cie.fedservice.lh/
+* https://op.fedservice.lh -> https://umu.fedservice.lh -> https://swamid.fedservice.lh
+* https://op.fedservice.lh -> https://umu.fedservice.lh -> https://seid.fedservice.lh
+```
+
+This will export the trust tree for the entity `https://op.fedservice.lh` to the file [examples/op-chains.dot](examples/op-chains.dot) in the [DOT language](https://en.wikipedia.org/wiki/DOT_(graph_description_language)).
+
+The file can be converted to an image using the `dot` command from the [Graphviz](https://graphviz.org/) package (or any other tool that can read DOT files):
+
+```bash
+dot -Tpng examples/op-chains.dot -o examples/op-chains.png
+```
+
+![Trust tree for https://op.fedservice.lh](examples/op-chains.png)
+
+
+2. Federation discovery
+
+Discovering all entities in a sub-federation given by its root entity:
+
+```bash
+$ ofcli subtree https://swamid.fedservice.lh --export swamid-fed
+{
+  "https://swamid.fedservice.lh": {
+    "https://umu.fedservice.lh": {
+      "https://op.fedservice.lh": {}
+    },
+    "https://lu.fedservice.lh": {
+      "https://auto.fedservice.lh": {}
+    }
+  }
+}
+```
+
+This will export the federation tree for the entity `https://swamid.fedservice.lh` to the file [examples/swamid-fed.dot](examples/swamid-fed.json), which can be rendered as an image as described above.
+
+![Federation tree for https://swamid.fedservice.lh](examples/swamid-fed.png)
+
+3. Metadata resolution
+
+Resolving metadata for an entity, given a trust anchor, will apply all metadata policies along the trustchain found for the given trust anchor, and return the resulting metadata.
+
+```bash
+$ ofcli resolve https://op.fedservice.lh --ta https://trust-anchor.spid-cie.fedservice.lh/ --entity-type openid_provider
+```
+
+This will return the metadata for the entity `https://op.fedservice.lh` as it would be seen by an entity that has `https://trust-anchor.spid-cie.fedservice.lh/` as a trust anchor (see [examples/op-resolved-metadata.json](examples/op-resolved-metadata.json)).
 
 ## Development
 
