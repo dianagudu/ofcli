@@ -130,9 +130,13 @@ class TrustTree:
                 **utils.get_self_signed_entity_configuration(authority)
             )
             logger.debug(f"Fetching entity statement for {sub} from {authority}")
-            subordinate_statement = EntityStatement(
-                **utils.fetch_entity_statement(sub, authority)
-            )
+            try:
+                subordinate_statement = EntityStatement(
+                    **utils.fetch_entity_statement(sub, authority)
+                )
+            except Exception as e:
+                logger.debug(e)
+                return False
             tt = TrustTree(
                 authority_statement,
                 subordinate_statement,
