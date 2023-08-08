@@ -15,6 +15,7 @@ from ofcli.api import (
     list_subordinates,
     discover,
     resolve_entity,
+    subtree,
 )
 from ofcli.utils import print_json, print_trustchains, set_verify_ssl, print_version
 from ofcli.logging import logger
@@ -351,6 +352,27 @@ def resolve(entity_id: str, ta: str, entity_type: str, **kwargs):
     metadata = resolve_entity(entity_id, ta, entity_type)
     logger.debug("Resolved metadata: %s", metadata)
     print_json(metadata)
+
+
+@cli.command(
+    "subtree", short_help="Discover federation subtree using given entity as root."
+)
+@click.argument("entity_id", metavar="ENTITY_ID")
+@click.option(
+    "--export",
+    help="Export tree to a dot file.",
+    metavar="DOT_FILE",
+    required=False,
+    default=None,
+    # add .dot extension if not present
+    callback=lambda ctx, param, value: value
+    if not value or value.endswith(".dot")
+    else value + ".dot",
+)
+@common_options
+def get_subtree(entity_id: str, export: str | None, **kwargs):
+    """Discover all entities in the federation given by the root entity id and build tree."""
+    print_json(subtree(entity_id, export))
 
 
 # command to build the paths between two entities in the OIDC federation

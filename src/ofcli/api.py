@@ -1,10 +1,8 @@
 """
 API for OIDC Federation exploration.
 """
-from ofcli import utils
+from ofcli import utils, trustchain, fedtree
 from ofcli.message import EntityStatement, Metadata
-from ofcli.trustchain import TrustChain
-from ofcli.logging import logger
 
 
 def get_entity_configuration(entity_id: str, verify: bool = False) -> dict:
@@ -49,7 +47,7 @@ def get_entity_jwks(entity_id: str) -> dict:
 
 def get_trustchains(
     entity_id: str, trust_anchors: list[str] = [], export: str | None = None
-) -> list[TrustChain]:
+) -> list[trustchain.TrustChain]:
     """Builds all trustchains for a given entity ID.
 
     :param entity_id: The entity ID to build the trustchains for (URL).
@@ -57,7 +55,7 @@ def get_trustchains(
     :param export: The file to export the trustchains to. Defaults to None.
     :return: The trustchains as a list of lists of entity IDs.
     """
-    return utils.build_trustchains(entity_id, trust_anchors, export)
+    return trustchain.build_trustchains(entity_id, trust_anchors, export)
 
 
 def fetch_entity_statement(entity_id: str, issuer: str) -> dict:
@@ -88,7 +86,7 @@ def discover(entity_id: str, tas: list[str] = []) -> list[str]:
     ta_entities = []
     # if no trust anchors are given, infer them from building the trustchains
     if len(tas) == 0:
-        chains = utils.build_trustchains(entity_id, [], export=None)
+        chains = trustchain.build_trustchains(entity_id, [], export=None)
         if len(chains) == 0:
             raise Exception("Could not find any trust anchors.")
         for chain in chains:
@@ -98,7 +96,18 @@ def discover(entity_id: str, tas: list[str] = []) -> list[str]:
             ta_entities.append(
                 EntityStatement(**utils.get_self_signed_entity_configuration(ta))
             )
-    return utils.discover_ops(ta_entities)
+    return fedtree.discover_ops(ta_entities)
+
+
+def subtree(entity_id: str, export: str | None) -> dict:
+    """Builds the entire federation subtree for given entity_id as root.
+
+    :param entity_id: The entity ID to use as root for the subtree (URL)
+    :return: The subtree serialized as a dict.
+    """
+    entity = EntityStatement(**utils.get_self_signed_entity_configuration(entity_id))
+    tree = fedtree.discover(entity, export)
+    return tree
 
 
 def resolve_entity(entity_id: str, ta: str, entity_type: str) -> dict:
@@ -109,7 +118,7 @@ def resolve_entity(entity_id: str, ta: str, entity_type: str) -> dict:
     :param entity_type: The entity type to resolve.
     :return: The resolved metadata.
     """
-    chains = utils.build_trustchains(entity_id, [ta], export=None)
+    chains = trustchain.build_trustchains(entity_id, [ta], export=None)
     if len(chains) == 0:
         raise Exception("Could not build trustchain to trust anchor.")
     # TODO: select the shortest chain if more than one

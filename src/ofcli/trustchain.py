@@ -2,7 +2,7 @@ import datetime
 from functools import reduce
 import pygraphviz
 
-from ofcli.message import EntityStatement, Metadata, MetadataPolicy
+from ofcli.message import EntityStatement, Metadata
 from ofcli import utils
 from ofcli.logging import logger
 from ofcli.policy import gather_policies, apply_policy
@@ -195,23 +195,10 @@ class TrustChainResolver:
             self._export(self.trust_tree, graph)
             graph.write(filename)
 
-    def _add_node(
-        self, graph: pygraphviz.AGraph, entity: EntityStatement, is_ta: bool = False
-    ):
-        entity_type = utils.get_entity_type(entity)
-        color = utils.COLORS[entity_type]
-        if entity_type == "federation_entity" and not is_ta:
-            color = utils.ColorScheme.IA
-        graph.add_node(
-            entity.get("sub"),
-            style="filled",
-            fillcolor=color,
-            fontcolor="white",
-            comment=entity.to_dict(),
-        )
-
     def _export(self, trust_tree: TrustTree, graph: pygraphviz.AGraph) -> None:
-        self._add_node(graph, trust_tree.entity, len(trust_tree.authorities) == 0)
+        utils.add_node_to_graph(
+            graph, trust_tree.entity, len(trust_tree.authorities) == 0
+        )
         if trust_tree.subordinate:
             graph.add_edge(
                 trust_tree.entity.get("sub"), trust_tree.subordinate.get("sub")
@@ -232,3 +219,13 @@ class TrustChainResolver:
         if self.trust_tree:
             return self.trust_tree.verify_signatures(self.trust_anchors)
         return False
+
+
+def build_trustchains(
+    entity_id: str, trust_anchors: list[str], export: str | None
+) -> list[TrustChain]:
+    resolver = TrustChainResolver(entity_id, trust_anchors)
+    resolver.resolve()
+    if export:
+        resolver.export(export)
+    return resolver.chains()

@@ -5,10 +5,11 @@ from gettext import gettext as _
 import json
 import urllib.parse
 import click
+import pygraphviz
 import requests
 from cryptojwt.jws.jws import factory
 
-from ofcli import trustchain
+from ofcli import trustchain, fedtree
 from ofcli.logging import logger
 from ofcli import __version__ as ofcli_version, __name__ as ofcli_name
 from ofcli.message import EntityStatement
@@ -191,16 +192,6 @@ def get_subordinates(
     return list(json.loads(response.text))
 
 
-def build_trustchains(
-    entity_id: str, trust_anchors: list[str], export: str | None
-) -> list[trustchain.TrustChain]:
-    resolver = trustchain.TrustChainResolver(entity_id, trust_anchors)
-    resolver.resolve()
-    if export:
-        resolver.export(export)
-    return resolver.chains()
-
-
 def print_json(data: dict | list):
     json.dump(data, click.get_text_stream("stdout"), indent=2)
 
@@ -217,58 +208,20 @@ def print_trustchains(chains: list[trustchain.TrustChain], details: bool):
             click.echo(chain)
 
 
-class FedTree:
-    entity: EntityStatement
-    subordinates: list["FedTree"]
-
-    def __init__(self, entity: EntityStatement) -> None:
-        self.entity = entity
-        self.subordinates = []
-
-    def discover(self) -> None:
-        # probably should also verify things here
-        logger.debug("Discovering subordinates of %s" % self.entity.get("sub"))
-        if not self.entity.get("metadata"):
-            raise Exception("No metadata found in entity configuration.")
-        try:
-            subordinates = get_subordinates(self.entity)
-            for sub in subordinates:
-                subordinate = FedTree(
-                    EntityStatement(**get_self_signed_entity_configuration(sub))
-                )
-                subordinate.discover()
-                self.subordinates.append(subordinate)
-        except Exception as e:
-            logger.debug("Could not fetch subordinates, likely a leaf entity: %s" % e)
-
-    def serialize(self) -> dict:
-        return {
-            "entity": self.entity.get("sub"),
-            "subordinates": [sub.serialize() for sub in self.subordinates],
-        }
-
-    def get_entities(self, entity_type: str) -> list[str]:
-        entities = []
-        md = self.entity.get("metadata")
-        if md and md.get(entity_type):
-            entities.append(self.entity.get("sub"))
-        for sub in self.subordinates:
-            entities += sub.get_entities(entity_type)
-        return entities
-
-
-def discover_ops(trust_anchors: list[EntityStatement]) -> list[str]:
-    """Discovers all OPs in the federations of the given trust anchors.
-
-    :param trust_anchors: The trust anchors to use.
-    :return: A list of OP entity IDs.
-    """
-    ops = []
-    for ta in trust_anchors:
-        subtree = FedTree(ta)
-        subtree.discover()
-        ops += subtree.get_entities("openid_provider")
-    return ops
+def add_node_to_graph(
+    graph: pygraphviz.AGraph, entity: EntityStatement, is_ta: bool = False
+):
+    entity_type = get_entity_type(entity)
+    color = COLORS[entity_type]
+    if entity_type == "federation_entity" and not is_ta:
+        color = ColorScheme.IA
+    graph.add_node(
+        entity.get("sub"),
+        style="filled",
+        fillcolor=color,
+        fontcolor="white",
+        comment=entity.to_dict(),
+    )
 
 
 def get_entity_type(entity: EntityStatement):
@@ -300,13 +253,3 @@ COLORS = {
     "oauth_resource_server": ColorScheme.RP,
     "federation_entity": ColorScheme.TA,
 }
-
-# def print_trustchains(trustchain: dict, indent: int = 0):
-#     """Prints a trustchain to stdout.
-
-#     :param trustchain: The trustchain to print.
-#     :param indent: The indentation level to use. Defaults to 0.
-#     """
-#     for superior, chain in trustchain.items():
-#         click.echo("\t" * indent + superior)
-#         print_trustchains(chain, indent + 1)
