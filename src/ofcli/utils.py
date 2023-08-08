@@ -271,6 +271,36 @@ def discover_ops(trust_anchors: list[EntityStatement]) -> list[str]:
     return ops
 
 
+def get_entity_type(entity: EntityStatement):
+    logger.debug(f"Getting metadata type for {entity.get('sub')}")
+    md = entity.get("metadata")
+    if not md:
+        raise Exception("No metadata found in entity statement")
+    types = list(md.to_dict().keys())
+    if len(types) == 0:
+        raise Exception("Empty metadata")
+    if len(types) > 1:
+        logger.warning("Entity has multiple metadata types, choosing one randomly.")
+    return types[0]
+
+
+# define colors for different metadata types
+class ColorScheme:
+    OP = "#01425E"
+    RP = "#DD4C1A"
+    IA = "#5B317B"
+    TA = "#C50679"
+
+
+COLORS = {
+    "openid_relying_party": ColorScheme.RP,
+    "openid_provider": ColorScheme.OP,
+    "oauth_authorization_server": ColorScheme.OP,
+    "oauth_client": ColorScheme.RP,
+    "oauth_resource_server": ColorScheme.RP,
+    "federation_entity": ColorScheme.TA,
+}
+
 # def print_trustchains(trustchain: dict, indent: int = 0):
 #     """Prints a trustchain to stdout.
 

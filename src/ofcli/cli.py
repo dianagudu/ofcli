@@ -353,8 +353,6 @@ def resolve(entity_id: str, ta: str, entity_type: str, **kwargs):
     print_json(metadata)
 
 
-# command to build the subtree in the OIDC federation for a given entity
-
 # command to build the paths between two entities in the OIDC federation
 
 # command to show the modified metadata of an entity, given the other entity and the path between them
