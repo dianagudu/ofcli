@@ -220,11 +220,13 @@ def add_node_to_graph(
         style="filled",
         fillcolor=color,
         fontcolor="white",
+        label=get_label(entity.get("sub", ""), entity_type),
+        URL=entity.get("sub"),
         comment=entity.to_dict(),
     )
 
 
-def get_entity_type(entity: EntityStatement):
+def get_entity_type(entity: EntityStatement) -> str:
     logger.debug(f"Getting metadata type for {entity.get('sub')}")
     md = entity.get("metadata")
     if not md:
@@ -235,6 +237,10 @@ def get_entity_type(entity: EntityStatement):
     if len(types) > 1:
         logger.warning("Entity has multiple metadata types, choosing one randomly.")
     return types[0]
+
+
+def get_label(entity_id: str, entity_type: str) -> str:
+    return f"<{entity_id} <br /> <font point-size='10'>{entity_type}</font>>"
 
 
 # define colors for different metadata types
