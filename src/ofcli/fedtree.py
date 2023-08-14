@@ -30,10 +30,13 @@ class FedTree:
             logger.debug("Could not fetch subordinates, likely a leaf entity: %s" % e)
 
     def serialize(self) -> dict:
-        subords = {}
+        subordinates = {}
         for sub in self.subordinates:
-            subords.update(sub.serialize())
-        return {self.entity.get("sub"): subords}
+            subordinates.update(sub.serialize())
+        subtree = {"entity_type": utils.get_entity_type(self.entity)}
+        if len(subordinates) > 0:
+            subtree.update({"subordinates": subordinates})
+        return {self.entity.get("sub"): subtree}
 
     def get_entities(self, entity_type: str) -> list[str]:
         entities = []
