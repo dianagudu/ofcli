@@ -1,6 +1,7 @@
 """
 API for OIDC Federation exploration.
 """
+import pygraphviz
 from ofcli import utils, trustchain, fedtree
 from ofcli.message import EntityStatement, Metadata
 
@@ -46,16 +47,21 @@ def get_entity_jwks(entity_id: str) -> dict:
 
 
 def get_trustchains(
-    entity_id: str, trust_anchors: list[str] = [], export: str | None = None
-) -> list[trustchain.TrustChain]:
+    entity_id: str, trust_anchors: list[str] = [], export_graph: bool = False
+) -> tuple[list[trustchain.TrustChain], pygraphviz.AGraph | None]:
     """Builds all trustchains for a given entity ID.
 
     :param entity_id: The entity ID to build the trustchains for (URL).
     :param trust_anchors: The trust anchor to use for building the trustchains. If not set (empty list), all possible trust chains until the root are built.
-    :param export: The file to export the trustchains to. Defaults to None.
-    :return: The trustchains as a list of lists of entity IDs.
+    :param export_graph: Whether to export the trustchains as a graph. Defaults to False.
+    :return: A tuple containing the trustchains as a list of lists of entity IDs, and the graph representation of the trustchains.
     """
-    return trustchain.build_trustchains(entity_id, trust_anchors, export)
+    resolver = trustchain.TrustChainResolver(entity_id, trust_anchors)
+    resolver.resolve()
+    graph = None
+    if export_graph:
+        graph = resolver.to_graph()
+    return resolver.chains(), graph
 
 
 def fetch_entity_statement(entity_id: str, issuer: str) -> dict:
@@ -86,7 +92,9 @@ def discover(entity_id: str, tas: list[str] = []) -> list[str]:
     ta_entities = []
     # if no trust anchors are given, infer them from building the trustchains
     if len(tas) == 0:
-        chains = trustchain.build_trustchains(entity_id, [], export=None)
+        resolver = trustchain.TrustChainResolver(entity_id, [])
+        resolver.resolve()
+        chains = resolver.chains()
         if len(chains) == 0:
             raise Exception("Could not find any trust anchors.")
         for chain in chains:
@@ -99,15 +107,22 @@ def discover(entity_id: str, tas: list[str] = []) -> list[str]:
     return fedtree.discover_ops(ta_entities)
 
 
-def subtree(entity_id: str, export: str | None) -> dict:
+def subtree(
+    entity_id: str, export_graph: bool = False
+) -> tuple[dict, pygraphviz.AGraph | None]:
     """Builds the entire federation subtree for given entity_id as root.
 
     :param entity_id: The entity ID to use as root for the subtree (URL)
+    :param export_graph: Whether to export the subtree as a graph. Defaults to False.
     :return: The subtree serialized as a dict.
     """
     entity = EntityStatement(**utils.get_self_signed_entity_configuration(entity_id))
-    tree = fedtree.discover(entity, export)
-    return tree
+    subtree = fedtree.FedTree(entity)
+    subtree.discover()
+    graph = None
+    if export_graph:
+        graph = subtree.to_graph()
+    return subtree.serialize(), graph
 
 
 def resolve_entity(entity_id: str, ta: str, entity_type: str) -> dict:
@@ -118,7 +133,9 @@ def resolve_entity(entity_id: str, ta: str, entity_type: str) -> dict:
     :param entity_type: The entity type to resolve.
     :return: The resolved metadata.
     """
-    chains = trustchain.build_trustchains(entity_id, [ta], export=None)
+    resolver = trustchain.TrustChainResolver(entity_id, [ta])
+    resolver.resolve()
+    chains = resolver.chains()
     if len(chains) == 0:
         raise Exception("Could not build trustchain to trust anchor.")
     # TODO: select the shortest chain if more than one

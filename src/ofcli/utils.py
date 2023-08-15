@@ -8,6 +8,7 @@ import click
 import pygraphviz
 import requests
 from cryptojwt.jws.jws import factory
+import enum
 
 from ofcli import trustchain, fedtree
 from ofcli.logging import logger
@@ -205,7 +206,30 @@ def print_trustchains(chains: list[trustchain.TrustChain], details: bool):
             print_json(chain.to_json())
     else:
         for chain in chains:
-            click.echo(chain)
+            click.echo("* " + str(chain))
+
+
+def _subtree_to_string(entity_id: str, entity_info: dict, indent: int = 0) -> str:
+    prefix = "  " * indent + "- "
+    output = f"{prefix}{entity_id} ({entity_info['entity_type']})\n"
+    if "subordinates" in entity_info:
+        for sub_id, sub_info in entity_info["subordinates"].items():
+            output += _subtree_to_string(sub_id, sub_info, indent + 1)
+    return output
+
+
+def subtree_to_string(subtree: dict) -> str:
+    output = ""
+    for entity_id, entity_info in subtree.items():
+        output += _subtree_to_string(entity_id, entity_info)
+    return output
+
+
+def print_subtree(serialized_subtree: dict, details: bool):
+    if details:
+        print_json(serialized_subtree)
+    else:
+        click.echo(subtree_to_string(serialized_subtree), nl=False)
 
 
 def add_node_to_graph(
@@ -259,3 +283,9 @@ COLORS = {
     "oauth_resource_server": ColorScheme.RP,
     "federation_entity": ColorScheme.TA,
 }
+
+
+class OutputType(str, enum.Enum):
+    json = "json"
+    dot = "dot"
+    text = "text"

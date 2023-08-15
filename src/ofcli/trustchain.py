@@ -45,8 +45,7 @@ class TrustChain:
     def __str__(self) -> str:
         """Prints the entity IDs in the chain. The last one is the trust anchor."""
         return (
-            "* "
-            + " -> ".join([link.get("iss") or "" for link in self._chain[:-1]])
+            " -> ".join([link.get("iss") or "" for link in self._chain[:-1]])
             + " (expiring at "
             + datetime.datetime.fromtimestamp(self._exp).isoformat()
             + ")"
@@ -187,15 +186,16 @@ class TrustChainResolver:
         self.trust_tree = TrustTree(starting, None)
         self.trust_tree.resolve(self.trust_anchors)
 
-    def export(self, filename: str) -> None:
+    def to_graph(self) -> pygraphviz.AGraph | None:
         if self.trust_tree:
             graph = pygraphviz.AGraph(
                 name=f"Trustchains: {self.starting_entity}", directed=True
             )
-            self._export(self.trust_tree, graph)
-            graph.write(filename)
+            self._to_graph(self.trust_tree, graph)
+            return graph
+        return None
 
-    def _export(self, trust_tree: TrustTree, graph: pygraphviz.AGraph) -> None:
+    def _to_graph(self, trust_tree: TrustTree, graph: pygraphviz.AGraph) -> None:
         utils.add_node_to_graph(
             graph, trust_tree.entity, len(trust_tree.authorities) == 0
         )
@@ -204,7 +204,7 @@ class TrustChainResolver:
                 trust_tree.entity.get("sub"), trust_tree.subordinate.get("sub")
             )
         for authority in trust_tree.authorities:
-            self._export(authority, graph)
+            self._to_graph(authority, graph)
 
     def chains(self) -> list[TrustChain]:
         if self.trust_tree:
@@ -219,13 +219,3 @@ class TrustChainResolver:
         if self.trust_tree:
             return self.trust_tree.verify_signatures(self.trust_anchors)
         return False
-
-
-def build_trustchains(
-    entity_id: str, trust_anchors: list[str], export: str | None
-) -> list[TrustChain]:
-    resolver = TrustChainResolver(entity_id, trust_anchors)
-    resolver.resolve()
-    if export:
-        resolver.export(export)
-    return resolver.chains()

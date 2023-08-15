@@ -17,7 +17,13 @@ from ofcli.api import (
     resolve_entity,
     subtree,
 )
-from ofcli.utils import print_json, print_trustchains, set_verify_ssl, print_version
+from ofcli.utils import (
+    print_json,
+    print_subtree,
+    print_trustchains,
+    set_verify_ssl,
+    print_version,
+)
 from ofcli.logging import logger
 
 
@@ -243,8 +249,12 @@ def trustchains(
     """
     Build trustchain for a given entity and print it to stdout.
     """
-    chains = get_trustchains(entity_id, list(ta), export)
+    chains, graph = get_trustchains(entity_id, list(ta), export is not None)
     print_trustchains(chains, details)
+    if export:
+        if not graph:
+            raise Exception("No graph to export.")
+        graph.write(export)
 
 
 @cli.command(
@@ -369,10 +379,22 @@ def resolve(entity_id: str, ta: str, entity_type: str, **kwargs):
     if not value or value.endswith(".dot")
     else value + ".dot",
 )
+@click.option(
+    "--details",
+    help="Prints subtree as json with additional details, including jwt entity configurations.",
+    is_flag=True,
+    default=False,
+)
 @common_options
-def get_subtree(entity_id: str, export: str | None, **kwargs):
+def get_subtree(entity_id: str, export: str | None, details: bool, **kwargs):
     """Discover all entities in the federation given by the root entity id and build tree."""
-    print_json(subtree(entity_id, export))
+    # print_json(subtree(entity_id, export))
+    tree, graph = subtree(entity_id, export is not None)
+    print_subtree(tree, details)
+    if export:
+        if not graph:
+            raise Exception("No graph to export.")
+        graph.write(export)
 
 
 # command to build the paths between two entities in the OIDC federation
