@@ -5,3 +5,4 @@ cryptojwt
 pygraphviz
 fastapi
 uvicorn[standard]
+oidcmsg
