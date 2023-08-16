@@ -24,12 +24,14 @@ def index(request: Request) -> list[dict[str, str]]:
 
 @app.get(path="/trustchains/{entity_id:path}", name="trustchains")
 def trustchains(
-    entity_id: HttpUrl,
-    ta: Annotated[list[HttpUrl], Query()] = [],
+    entity_id: str,
+    ta: Annotated[list[str], Query()] = [],
     format: utils.OutputType = utils.OutputType.json,
 ):
     chains, graph = api.get_trustchains(
-        entity_id, [anchor for anchor in ta], format == utils.OutputType.dot
+        entity_id,
+        ta,
+        format == utils.OutputType.dot,
     )
     if format == utils.OutputType.dot:
         if not graph:
@@ -48,8 +50,8 @@ def trustchains(
 
 
 @app.get(path="/subtree/{entity_id:path}", name="subtree")
-def subtree(entity_id: HttpUrl, format: utils.OutputType = utils.OutputType.json):
-    tree, graph = api.subtree(str(entity_id), format == utils.OutputType.dot)
+def subtree(entity_id: str, format: utils.OutputType = utils.OutputType.json):
+    tree, graph = api.subtree(entity_id, format == utils.OutputType.dot)
     if format == utils.OutputType.dot:
         if not graph:
             raise Exception("No graph to export.")
@@ -58,6 +60,20 @@ def subtree(entity_id: HttpUrl, format: utils.OutputType = utils.OutputType.json
         return PlainTextResponse(utils.subtree_to_string(tree))
     # if format == utils.OutputType.json:
     return JSONResponse(tree)
+
+
+@app.get(path="/resolve/{entity_id:path}", name="resolve")
+def resolve(
+    entity_id: str, ta: Annotated[str, Query()], entity_type: Annotated[str, Query()]
+):
+    metadata = api.resolve_entity(entity_id, ta, entity_type)
+    return metadata
+
+
+@app.get(path="/discovery/{entity_id:path}", name="discovery")
+def discovery(entity_id: str, ta: Annotated[list[str], Query()] = []):
+    ops = api.discover(entity_id, ta)
+    return ops
 
 
 def main():

@@ -10,7 +10,7 @@ import requests
 from cryptojwt.jws.jws import factory
 import enum
 
-from ofcli import trustchain, fedtree
+from ofcli import trustchain
 from ofcli.logging import logger
 from ofcli import __version__ as ofcli_version, __name__ as ofcli_name
 from ofcli.message import EntityStatement
