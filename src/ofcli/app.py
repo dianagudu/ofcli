@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from fastapi.params import Query
+from fastapi.params import Query, Path
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 import uvicorn
 from typing import Annotated
@@ -11,7 +11,7 @@ app = FastAPI()
 
 
 @app.get(path="/", name="index")
-def index(request: Request) -> list[dict[str, str]]:
+async def index(request: Request) -> list[dict[str, str]]:
     url_list = [
         {
             "path": route.path,
@@ -22,15 +22,29 @@ def index(request: Request) -> list[dict[str, str]]:
     return url_list
 
 
-@app.get(path="/trustchains/{entity_id:path}", name="trustchains")
-def trustchains(
-    entity_id: str,
-    ta: Annotated[list[str], Query()] = [],
+@app.get(
+    path="/trustchains/{entity_id:path}",
+    name="trustchains",
+    description="Builds all trustchains for a given entity and prints them. If any trust anchor is specified, only trustchains ending in the trust anchor will be returned.",
+)
+async def trustchains(
+    entity_id: Annotated[
+        HttpUrl,
+        Path(
+            description="Entity ID to build trustchains for.",
+        ),
+    ],
+    ta: Annotated[
+        list[HttpUrl],
+        Query(
+            description="Trust anchor ID to use for building trustchains (multiple TAs possible)."
+        ),
+    ] = [],
     format: utils.OutputType = utils.OutputType.json,
 ):
     chains, graph = api.get_trustchains(
-        entity_id,
-        ta,
+        entity_id.unicode_string(),
+        [ta_item.unicode_string() for ta_item in ta],
         format == utils.OutputType.dot,
     )
     if format == utils.OutputType.dot:
@@ -50,8 +64,10 @@ def trustchains(
 
 
 @app.get(path="/subtree/{entity_id:path}", name="subtree")
-def subtree(entity_id: str, format: utils.OutputType = utils.OutputType.json):
-    tree, graph = api.subtree(entity_id, format == utils.OutputType.dot)
+async def subtree(entity_id: HttpUrl, format: utils.OutputType = utils.OutputType.json):
+    tree, graph = api.subtree(
+        entity_id.unicode_string(), format == utils.OutputType.dot
+    )
     if format == utils.OutputType.dot:
         if not graph:
             raise Exception("No graph to export.")
@@ -63,16 +79,22 @@ def subtree(entity_id: str, format: utils.OutputType = utils.OutputType.json):
 
 
 @app.get(path="/resolve/{entity_id:path}", name="resolve")
-def resolve(
-    entity_id: str, ta: Annotated[str, Query()], entity_type: Annotated[str, Query()]
+async def resolve(
+    entity_id: HttpUrl,
+    ta: Annotated[HttpUrl, Query()],
+    entity_type: Annotated[str, Query()],
 ):
-    metadata = api.resolve_entity(entity_id, ta, entity_type)
+    metadata = api.resolve_entity(
+        entity_id.unicode_string(), ta.unicode_string(), entity_type
+    )
     return metadata
 
 
 @app.get(path="/discovery/{entity_id:path}", name="discovery")
-def discovery(entity_id: str, ta: Annotated[list[str], Query()] = []):
-    ops = api.discover(entity_id, ta)
+async def discovery(entity_id: HttpUrl, ta: Annotated[list[HttpUrl], Query()] = []):
+    ops = api.discover(
+        entity_id.unicode_string(), [ta_item.unicode_string() for ta_item in ta]
+    )
     return ops
 
 

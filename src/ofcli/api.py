@@ -3,6 +3,7 @@ API for OIDC Federation exploration.
 """
 import pygraphviz
 from ofcli import utils, trustchain, fedtree
+from ofcli.utils import URL
 from ofcli.message import EntityStatement, Metadata
 
 
@@ -13,7 +14,9 @@ def get_entity_configuration(entity_id: str, verify: bool = False) -> dict:
     :param verify: Whether to verify the entity configuration. Defaults to False.
     :return: The decoded entity configuration as a dictionary.
     """
-    configuration = utils.get_self_signed_entity_configuration(entity_id)
+    configuration = utils.get_payload(
+        utils.get_self_signed_entity_configuration(URL(entity_id))
+    )
     if verify:
         EntityStatement(**configuration).verify()
     return configuration
@@ -26,7 +29,9 @@ def get_entity_metadata(entity_id: str, verify: bool = False) -> dict:
     :param verify: Whether to verify the metadata. Defaults to False.
     :return: The decoded OIDC metadata as a dictionary.
     """
-    metadata = utils.get_self_signed_entity_configuration(entity_id).get("metadata")
+    metadata = utils.get_payload(
+        utils.get_self_signed_entity_configuration(URL(entity_id))
+    ).get("metadata", None)
     if not metadata:
         raise Exception("No metadata found in entity configuration.")
     if verify:
@@ -40,7 +45,9 @@ def get_entity_jwks(entity_id: str) -> dict:
     :param entity_id: The entity ID to fetch the JWKS from (URL).
     :return: The decoded JWKS as a dictionary.
     """
-    jwks = utils.get_self_signed_entity_configuration(entity_id).get("jwks")
+    jwks = utils.get_payload(
+        utils.get_self_signed_entity_configuration(URL(entity_id))
+    ).get("jwks")
     if not jwks:
         raise Exception("No jwks found in entity configuration.")
     return jwks
@@ -56,7 +63,9 @@ def get_trustchains(
     :param export_graph: Whether to export the trustchains as a graph. Defaults to False.
     :return: A tuple containing the trustchains as a list of lists of entity IDs, and the graph representation of the trustchains.
     """
-    resolver = trustchain.TrustChainResolver(entity_id, trust_anchors)
+    resolver = trustchain.TrustChainResolver(
+        URL(entity_id), [URL(ta) for ta in trust_anchors]
+    )
     resolver.resolve()
     graph = None
     if export_graph:
@@ -65,7 +74,7 @@ def get_trustchains(
 
 
 def fetch_entity_statement(entity_id: str, issuer: str) -> dict:
-    return utils.fetch_entity_statement(entity_id, issuer)
+    return utils.get_payload(utils.fetch_entity_statement(URL(entity_id), URL(issuer)))
 
 
 def list_subordinates(
@@ -74,7 +83,9 @@ def list_subordinates(
     trust_marked: bool = False,
     trust_mark_id: str | None = None,
 ) -> list[str]:
-    entity = EntityStatement(**utils.get_self_signed_entity_configuration(entity_id))
+    entity = EntityStatement(
+        **utils.get_payload(utils.get_self_signed_entity_configuration(URL(entity_id)))
+    )
     return utils.get_subordinates(entity, entity_type, trust_marked, trust_mark_id)
 
 
@@ -89,22 +100,21 @@ def discover(entity_id: str, tas: list[str] = []) -> list[str]:
     # check if it is an openid_relying_party
     if not metadata.get("openid_relying_party"):
         raise Exception("Entity is not an OpenID Relying Party.")
-    ta_entities = []
     # if no trust anchors are given, infer them from building the trustchains
+    trust_anchors = []
     if len(tas) == 0:
-        resolver = trustchain.TrustChainResolver(entity_id, [])
+        resolver = trustchain.TrustChainResolver(URL(entity_id), [])
         resolver.resolve()
         chains = resolver.chains()
         if len(chains) == 0:
             raise Exception("Could not find any trust anchors.")
         for chain in chains:
-            ta_entities.append(chain.get_trust_anchor())
+            trust_anchors.append(chain.get_trust_anchor())
+        # filter duplicates
+        trust_anchors = list(set(trust_anchors))
     else:
-        for ta in tas:
-            ta_entities.append(
-                EntityStatement(**utils.get_self_signed_entity_configuration(ta))
-            )
-    return fedtree.discover_ops(ta_entities)
+        trust_anchors = [URL(ta) for ta in tas]
+    return fedtree.discover_ops(trust_anchors)
 
 
 def subtree(
@@ -116,8 +126,9 @@ def subtree(
     :param export_graph: Whether to export the subtree as a graph. Defaults to False.
     :return: The subtree serialized as a dict.
     """
-    entity = EntityStatement(**utils.get_self_signed_entity_configuration(entity_id))
-    subtree = fedtree.FedTree(entity)
+    subtree = fedtree.FedTree(
+        utils.get_self_signed_entity_configuration(URL(entity_id))
+    )
     subtree.discover()
     graph = None
     if export_graph:
@@ -133,7 +144,7 @@ def resolve_entity(entity_id: str, ta: str, entity_type: str) -> dict:
     :param entity_type: The entity type to resolve.
     :return: The resolved metadata.
     """
-    resolver = trustchain.TrustChainResolver(entity_id, [ta])
+    resolver = trustchain.TrustChainResolver(URL(entity_id), [URL(ta)])
     resolver.resolve()
     chains = resolver.chains()
     if len(chains) == 0:

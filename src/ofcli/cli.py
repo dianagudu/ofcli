@@ -17,10 +17,10 @@ from ofcli.api import (
     resolve_entity,
     subtree,
 )
+from ofcli.trustchain import print_trustchains
 from ofcli.utils import (
     print_json,
     print_subtree,
-    print_trustchains,
     set_verify_ssl,
     print_version,
 )

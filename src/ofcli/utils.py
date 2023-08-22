@@ -1,21 +1,95 @@
 """Utility functions for OIDC Federation CLI."""
 
+import re
 import typing as t
 from gettext import gettext as _
 import json
 import urllib.parse
 import click
+from pydantic import HttpUrl
+import pydantic_core
 import pygraphviz
 import requests
 from cryptojwt.jws.jws import factory
 import enum
 
-from ofcli import trustchain
 from ofcli.logging import logger
 from ofcli import __version__ as ofcli_version, __name__ as ofcli_name
 from ofcli.message import EntityStatement
 
 VERIFY_SSL = True
+
+
+# define colors for different metadata types
+class ColorScheme:
+    OP = "#01425E"
+    RP = "#DD4C1A"
+    IA = "#5B317B"
+    TA = "#C50679"
+
+
+COLORS = {
+    "openid_relying_party": ColorScheme.RP,
+    "openid_provider": ColorScheme.OP,
+    "oauth_authorization_server": ColorScheme.OP,
+    "oauth_client": ColorScheme.RP,
+    "oauth_resource_server": ColorScheme.RP,
+    "federation_entity": ColorScheme.TA,
+}
+
+
+class OutputType(str, enum.Enum):
+    json = "json"
+    dot = "dot"
+    text = "text"
+
+
+class URL:
+    def __init__(self, url: str):
+        self._url = HttpUrl(url)
+        self._original = url
+
+    def __str__(self):
+        return self._url.__str__()
+
+    def __repr__(self):
+        return self.__str__()
+
+    def url(self):
+        return self._url
+
+    def __eq__(self, other):
+        if isinstance(other, URL):
+            return self._url == other.url()
+        if isinstance(other, str):
+            return self._url == HttpUrl(other)
+        if isinstance(other, pydantic_core.Url):
+            return self._url == other
+        return False
+
+    def __hash__(self):
+        return hash(self._url)
+
+    def add_query_params(self, params: dict) -> "URL":
+        """Adds query parameters to a URL and returns a new URL.
+        :param url: The URL to add the query parameters to.
+        :param params: The query parameters to add.
+        :return: The URL with the query parameters added.
+        """
+        url_parts = list(urllib.parse.urlparse(str(self)))
+        query = dict(urllib.parse.parse_qsl(url_parts[4]))
+        query.update(params)
+        url_parts[4] = urllib.parse.urlencode(query)
+        return URL(urllib.parse.urlunparse(url_parts))
+
+    def remove_trailing_slashes(self) -> str:
+        """Removes trailing slashes from a URL and returns the new URL as a string.
+        :param url: The URL to remove the trailing slashes from.
+        :return: The URL without trailing slashes as a string
+        """
+        url_parts = list(urllib.parse.urlparse(str(self)))
+        url_parts[2] = url_parts[2].rstrip("/")
+        return urllib.parse.urlunparse(url_parts)
 
 
 def set_verify_ssl(ctx, param, value):
@@ -67,31 +141,32 @@ def print_version(ctx: click.Context, param: click.Parameter, value: bool) -> No
     ctx.exit()
 
 
-def well_known_url(entity_id: str) -> str:
+def well_known_url(entity_id: URL) -> URL:
     """Returns the well-known URL for a given entity ID.
 
     :param entity_id: The entity ID to get the well-known URL for.
     :return: The well-known URL.
     """
-    return entity_id.rstrip("/") + "/.well-known/openid-federation"
+    return URL(str(entity_id).rstrip("/") + "/.well-known/openid-federation")
 
 
-def fetch_jws_from_url(url: str) -> str:
+def fetch_jws_from_url(url: URL) -> str:
     """Fetches a JWS from a given URL.
 
     :param url: The url to fetch the entity configuration from.
     :return: The JWS as a string.
     """
-    # logger.debug(f"Using insecure connection: {not VERIFY_SSL}")
-    response = requests.request("GET", url, verify=VERIFY_SSL)
+    response = None
+    for tried_url in [url.remove_trailing_slashes(), str(url)]:
+        response = requests.request("GET", tried_url, verify=VERIFY_SSL)
 
-    if response.status_code != 200:
-        raise ValueError(
-            "Could not fetch entity statement from %s. Status code: %s"
-            % (url, response.status_code)
-        )
+        if response.status_code == 200:
+            return response.text
 
-    return response.text
+    raise ValueError(
+        "Could not fetch entity statement from %s. Status code: %s"
+        % (url, response.status_code if response is not None else "unknown")
+    )
 
 
 def get_payload(jws_str: str) -> dict:
@@ -113,31 +188,19 @@ def get_payload(jws_str: str) -> dict:
     return payload
 
 
-def add_query_params(url: str, params: dict) -> str:
-    """Adds query parameters to a URL.
-
-    :param url: The URL to add the query parameters to.
-    :param params: The query parameters to add.
-    :return: The URL with the query parameters added.
-    """
-    url_parts = list(urllib.parse.urlparse(url))
-    query = dict(urllib.parse.parse_qsl(url_parts[4]))
-    query.update(params)
-    url_parts[4] = urllib.parse.urlencode(query)
-    return urllib.parse.urlunparse(url_parts)
-
-
-def get_self_signed_entity_configuration(entity_id: str) -> dict:
+def get_self_signed_entity_configuration(entity_id: URL) -> str:
     """Fetches the self-signed entity configuration of a given entity ID.
 
     :param entity_id: The entity ID to fetch the entity configuration from (URL).
-    :return: The decoded entity configuration as a dictionary.
+    :return: The entity configuration as a JWT.
     """
-    return get_payload(fetch_jws_from_url(well_known_url(entity_id)))
+    return fetch_jws_from_url(well_known_url(entity_id))
 
 
-def fetch_entity_statement(entity_id: str, issuer: str) -> dict:
-    issuer_metadata = get_self_signed_entity_configuration(issuer).get("metadata")
+def fetch_entity_statement(entity_id: URL, issuer: URL) -> str:
+    issuer_metadata = get_payload(get_self_signed_entity_configuration(issuer)).get(
+        "metadata"
+    )
     if not issuer_metadata:
         raise Exception("No metadata found in entity configuration.")
     try:
@@ -145,14 +208,24 @@ def fetch_entity_statement(entity_id: str, issuer: str) -> dict:
     except KeyError:
         raise Exception("Leaf entities cannot publish statements about other entities.")
     try:
-        fetch_url = fe["federation_fetch_endpoint"]
+        fetch_url = URL(fe["federation_fetch_endpoint"])
     except KeyError:
         raise Exception("No federation_fetch_endpoint found in metadata!")
-    return get_payload(
-        fetch_jws_from_url(
-            add_query_params(fetch_url, {"iss": issuer, "sub": entity_id})
-        )
-    )
+
+    last_exception = None
+    for entity_id_url in [entity_id.remove_trailing_slashes(), str(entity_id)]:
+        for issuer_url in [issuer.remove_trailing_slashes(), str(issuer)]:
+            try:
+                return fetch_jws_from_url(
+                    fetch_url.add_query_params(
+                        {"iss": issuer_url, "sub": entity_id_url}
+                    )
+                )
+
+            except Exception as e:
+                last_exception = e
+                logger.debug(e)
+    raise last_exception if last_exception else Exception("Unknown error")
 
 
 def get_subordinates(
@@ -169,7 +242,7 @@ def get_subordinates(
     except KeyError:
         raise Exception("Leaf entities cannot have subordinates.")
     try:
-        list_url = le["federation_list_endpoint"]
+        list_url = URL(le["federation_list_endpoint"])
     except KeyError:
         raise Exception("No federation_list_endpoint found in metadata!")
 
@@ -181,8 +254,8 @@ def get_subordinates(
     if trust_mark_id:
         params["trust_mark_id"] = trust_mark_id
 
-    url = add_query_params(list_url, params)
-    response = requests.request("GET", url, verify=VERIFY_SSL)
+    url = list_url.add_query_params(params)
+    response = requests.request("GET", str(url), verify=VERIFY_SSL)
 
     if response.status_code != 200:
         raise ValueError(
@@ -197,19 +270,7 @@ def print_json(data: dict | list):
     json.dump(data, click.get_text_stream("stdout"), indent=2)
 
 
-def print_trustchains(chains: list[trustchain.TrustChain], details: bool):
-    if len(chains) == 0:
-        logger.warn("No trust chains found.")
-        return
-    if details:
-        for chain in chains:
-            print_json(chain.to_json())
-    else:
-        for chain in chains:
-            click.echo("* " + str(chain))
-
-
-def _subtree_to_string(entity_id: str, entity_info: dict, indent: int = 0) -> str:
+def _subtree_to_string(entity_id: URL, entity_info: dict, indent: int = 0) -> str:
     prefix = "  " * indent + "- "
     output = f"{prefix}{entity_id} ({entity_info['entity_type']})\n"
     if "subordinates" in entity_info:
@@ -244,48 +305,39 @@ def add_node_to_graph(
         style="filled",
         fillcolor=color,
         fontcolor="white",
-        label=get_label(entity.get("sub", ""), entity_type),
+        label=f"<{entity.get('sub')} <br /> <font point-size='10'>{entity_type}</font>>",
         URL=entity.get("sub"),
         comment=entity.to_dict(),
     )
 
 
 def get_entity_type(entity: EntityStatement) -> str:
-    logger.debug(f"Getting metadata type for {entity.get('sub')}")
+    # logger.debug(f"Getting metadata type for {entity.get('sub')}")
     md = entity.get("metadata")
     if not md:
         raise Exception("No metadata found in entity statement")
-    types = list(md.to_dict().keys())
-    if len(types) == 0:
+    etypes = list(md.to_dict().keys())
+    # logger.debug(f"Found metadata types: {etypes}")
+    if len(etypes) == 0:
         raise Exception("Empty metadata")
-    if len(types) > 1:
-        logger.warning("Entity has multiple metadata types, choosing one randomly.")
-    return types[0]
+    if len(etypes) > 1:
+        logger.warning(
+            "Entity has multiple metadata types, choosing one randomly with priority for non-leaf entities."
+        )
+        # if "federation_entity" in etypes:
+        #     return [t for t in etypes if t != "federation_entity"][0]
+    return etypes[0]
 
 
-def get_label(entity_id: str, entity_type: str) -> str:
-    return f"<{entity_id} <br /> <font point-size='10'>{entity_type}</font>>"
+class EntityStatementPlus(EntityStatement):
+    jwt: str
+    entity_id: str
 
+    def __init__(self, jwt: str):
+        super().__init__(**get_payload(jwt))
+        self.jwt = jwt
+        self.entity_id = self.get("sub", "")
 
-# define colors for different metadata types
-class ColorScheme:
-    OP = "#01425E"
-    RP = "#DD4C1A"
-    IA = "#5B317B"
-    TA = "#C50679"
-
-
-COLORS = {
-    "openid_relying_party": ColorScheme.RP,
-    "openid_provider": ColorScheme.OP,
-    "oauth_authorization_server": ColorScheme.OP,
-    "oauth_client": ColorScheme.RP,
-    "oauth_resource_server": ColorScheme.RP,
-    "federation_entity": ColorScheme.TA,
-}
-
-
-class OutputType(str, enum.Enum):
-    json = "json"
-    dot = "dot"
-    text = "text"
+    @staticmethod
+    def fetch(url: URL) -> "EntityStatementPlus":
+        return EntityStatementPlus(get_self_signed_entity_configuration(url))

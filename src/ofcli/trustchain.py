@@ -1,20 +1,27 @@
 import datetime
 from functools import reduce
 import pygraphviz
+import click
 
-from ofcli.message import EntityStatement, Metadata
-from ofcli import utils
+from ofcli.message import Metadata
+from ofcli.utils import (
+    URL,
+    EntityStatementPlus,
+    fetch_entity_statement,
+    add_node_to_graph,
+    print_json,
+)
 from ofcli.logging import logger
 from ofcli.policy import gather_policies, apply_policy
 
 
 class TrustChain:
-    _chain: list[EntityStatement]
+    _chain: list[EntityStatementPlus]
     _exp: int
     _combined_policy: dict[str, dict]
     _metadata: dict[str, dict]
 
-    def __init__(self, chain: list[EntityStatement]) -> None:
+    def __init__(self, chain: list[EntityStatementPlus]) -> None:
         self._chain = chain
         # calculate expiration as the minimum of all entities' expirations
         self._exp = reduce(
@@ -57,18 +64,18 @@ class TrustChain:
                 {
                     "iss": link.get("iss"),
                     "sub": link.get("sub"),
-                    "entity_statement": link.to_jwt(),
+                    "entity_statement": link.jwt,
                 }
                 for link in self._chain
             ],
             "exp": datetime.datetime.fromtimestamp(self._exp).isoformat(),
         }
 
-    def get_trust_anchor(self) -> EntityStatement:
-        # if len(self._chain) == 0:
-        #     return None
+    def get_trust_anchor(self) -> URL:
         # return last link in chain
-        return self._chain[-1]
+        if len(self._chain) == 0:
+            raise Exception("Malformed chain. No trust anchor found.")
+        return URL(self._chain[-1].entity_id)
 
     def get_metadata(self, entity_type: str) -> dict:
         md = self._metadata.get(entity_type)
@@ -81,24 +88,24 @@ class TrustChain:
 
 
 class TrustTree:
-    entity: EntityStatement
-    subordinate: EntityStatement | None
+    entity: EntityStatementPlus
+    subordinate: EntityStatementPlus | None
     authorities: list["TrustTree"]
 
     def __init__(
-        self, entity: EntityStatement, subordinate: EntityStatement | None
+        self, entity: EntityStatementPlus, subordinate: EntityStatementPlus | None
     ) -> None:
         self.entity = entity
         self.subordinate = subordinate
         self.authorities = []
 
-    def resolve(self, anchors: list[str], seen: list[str] = []) -> bool:
+    def resolve(self, anchors: list[URL], seen: list[URL] = []) -> bool:
         """Recursively resolve the trust tree.
         If no trust anchor is found, build the trust tree for all anchors.
 
         Args:
-            anchors (list[str]): List of trust anchors.
-            seen (list[str], optional): List of already seen entities (to avoid loops). Defaults to [].
+            anchors (list[URL]): List of trust anchors.
+            seen (list[URL], optional): List of already seen entities (to avoid loops). Defaults to [].
 
         Returns:
             bool: True if the trust tree is valid, False otherwise.
@@ -107,6 +114,7 @@ class TrustTree:
         sub = self.entity.get("sub")
         if not sub:
             raise Exception("No sub found in entity statement.")
+        sub = URL(sub)
         seen.append(sub)
         logger.debug(f"Seen: {seen}")
         if sub in anchors:
@@ -125,13 +133,12 @@ class TrustTree:
         valid = False
         for authority in self.entity.get("authority_hints", []):
             logger.debug(f"Fetching self signed entity statement for {authority}")
-            authority_statement = EntityStatement(
-                **utils.get_self_signed_entity_configuration(authority)
-            )
+            authority = URL(authority)
+            authority_statement = EntityStatementPlus.fetch(authority)
             logger.debug(f"Fetching entity statement for {sub} from {authority}")
             try:
-                subordinate_statement = EntityStatement(
-                    **utils.fetch_entity_statement(sub, authority)
+                subordinate_statement = EntityStatementPlus(
+                    fetch_entity_statement(sub, authority)
                 )
             except Exception as e:
                 logger.debug(e)
@@ -145,15 +152,15 @@ class TrustTree:
                 self.authorities.append(tt)
         return valid
 
-    def verify_signatures(self, anchors: list[str]) -> bool:
+    def verify_signatures(self, anchors: list[URL]) -> bool:
         # TODO: verify signatures
         return True
 
-    def chains(self) -> list[list[EntityStatement]]:
+    def chains(self) -> list[list[EntityStatementPlus]]:
         """Serializes trust chains from trust tree.
 
         Returns:
-            list[list[EntityStatement]]: List of trust chains.
+            list[list[EntityStatementPlus]]: List of trust chains.
         """
         if len(self.authorities) == 0:
             if self.subordinate is None:
@@ -171,18 +178,16 @@ class TrustTree:
 
 
 class TrustChainResolver:
-    starting_entity: str
-    trust_anchors: list[str]
+    starting_entity: URL
+    trust_anchors: list[URL]
     trust_tree: TrustTree | None = None
 
-    def __init__(self, starting_entity: str, trust_anchors: list[str]) -> None:
+    def __init__(self, starting_entity: URL, trust_anchors: list[URL]) -> None:
         self.starting_entity = starting_entity
         self.trust_anchors = trust_anchors
 
     def resolve(self) -> None:
-        starting = EntityStatement(
-            **utils.get_self_signed_entity_configuration(self.starting_entity)
-        )
+        starting = EntityStatementPlus.fetch(self.starting_entity)
         self.trust_tree = TrustTree(starting, None)
         self.trust_tree.resolve(self.trust_anchors)
 
@@ -196,9 +201,7 @@ class TrustChainResolver:
         return None
 
     def _to_graph(self, trust_tree: TrustTree, graph: pygraphviz.AGraph) -> None:
-        utils.add_node_to_graph(
-            graph, trust_tree.entity, len(trust_tree.authorities) == 0
-        )
+        add_node_to_graph(graph, trust_tree.entity, len(trust_tree.authorities) == 0)
         if trust_tree.subordinate:
             graph.add_edge(
                 trust_tree.entity.get("sub"), trust_tree.subordinate.get("sub")
@@ -219,3 +222,15 @@ class TrustChainResolver:
         if self.trust_tree:
             return self.trust_tree.verify_signatures(self.trust_anchors)
         return False
+
+
+def print_trustchains(chains: list[TrustChain], details: bool):
+    if len(chains) == 0:
+        logger.warn("No trust chains found.")
+        return
+    if details:
+        for chain in chains:
+            print_json(chain.to_json())
+    else:
+        for chain in chains:
+            click.echo("* " + str(chain))

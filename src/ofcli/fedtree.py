@@ -1,29 +1,33 @@
 import pygraphviz
 
 from ofcli.logging import logger
-from ofcli.message import EntityStatement
-from ofcli import utils
+from ofcli.utils import (
+    EntityStatementPlus,
+    URL,
+    get_self_signed_entity_configuration,
+    get_subordinates,
+    get_entity_type,
+    add_node_to_graph,
+)
 
 
 class FedTree:
-    entity: EntityStatement
+    entity: EntityStatementPlus
     subordinates: list["FedTree"]
 
-    def __init__(self, entity: EntityStatement) -> None:
-        self.entity = entity
+    def __init__(self, jwt: str) -> None:
+        self.entity = EntityStatementPlus(jwt)
+        logger.debug(f"Created tree node for {self.entity.get('sub')}")
         self.subordinates = []
 
     def discover(self) -> None:
         # probably should also verify things here
-        logger.debug("Discovering subordinates of %s" % self.entity.get("sub"))
         if not self.entity.get("metadata"):
             raise Exception("No metadata found in entity configuration.")
         try:
-            subordinates = utils.get_subordinates(self.entity)
+            subordinates = get_subordinates(self.entity)
             for sub in subordinates:
-                subordinate = FedTree(
-                    EntityStatement(**utils.get_self_signed_entity_configuration(sub))
-                )
+                subordinate = FedTree(get_self_signed_entity_configuration(URL(sub)))
                 subordinate.discover()
                 self.subordinates.append(subordinate)
         except Exception as e:
@@ -34,8 +38,8 @@ class FedTree:
         for sub in self.subordinates:
             subordinates.update(sub.serialize())
         subtree = {
-            "entity_type": utils.get_entity_type(self.entity),
-            "entity_configuration": self.entity.to_jwt(),
+            "entity_type": get_entity_type(self.entity),
+            "entity_configuration": self.entity.jwt,
         }
         if len(subordinates) > 0:
             subtree.update({"subordinates": subordinates})  # type: ignore
@@ -51,7 +55,7 @@ class FedTree:
         return entities
 
     def _to_graph(self, graph: pygraphviz.AGraph) -> None:
-        utils.add_node_to_graph(
+        add_node_to_graph(
             graph, self.entity, len(self.entity.get("authority_hints", [])) > 0
         )
         for sub in self.subordinates:
@@ -66,7 +70,7 @@ class FedTree:
         return graph
 
 
-def discover_ops(trust_anchors: list[EntityStatement]) -> list[str]:
+def discover_ops(trust_anchors: list[URL]) -> list[str]:
     """Discovers all OPs in the federations of the given trust anchors.
 
     :param trust_anchors: The trust anchors to use.
@@ -74,7 +78,7 @@ def discover_ops(trust_anchors: list[EntityStatement]) -> list[str]:
     """
     ops = []
     for ta in trust_anchors:
-        subtree = FedTree(ta)
+        subtree = FedTree(get_self_signed_entity_configuration(ta))
         subtree.discover()
         ops += subtree.get_entities("openid_provider")
     # TODO: return OPs as EntityStatements, including the corresponding TA, and apply metadata policies
