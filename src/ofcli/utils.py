@@ -44,6 +44,15 @@ class OutputType(str, enum.Enum):
     text = "text"
 
 
+class EntityType(str, enum.Enum):
+    openid_relying_party = "openid_relying_party"
+    openid_provider = "openid_provider"
+    oauth_authorization_server = "oauth_authorization_server"
+    oauth_client = "oauth_client"
+    oauth_resource_server = "oauth_resource_server"
+    federation_entity = "federation_entity"
+
+
 class URL:
     def __init__(self, url: str):
         self._url = HttpUrl(url)
