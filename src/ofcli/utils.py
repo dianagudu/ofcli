@@ -271,8 +271,10 @@ def get_subordinates(
             "Could not fetch subordinates from %s. Status code: %s"
             % (url, response.status_code)
         )
-
-    return list(json.loads(response.text))
+    subs = json.loads(response.text)
+    if not subs:
+        return []
+    return list(subs)
 
 
 def print_json(data: dict | list):
