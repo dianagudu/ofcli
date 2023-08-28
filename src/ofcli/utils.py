@@ -1,6 +1,5 @@
 """Utility functions for OIDC Federation CLI."""
 
-import re
 import typing as t
 from gettext import gettext as _
 import json
@@ -12,6 +11,7 @@ import pygraphviz
 import requests
 from cryptojwt.jws.jws import factory
 import enum
+from ofcli.exceptions import InternalException
 
 from ofcli.logging import logger
 from ofcli import __version__ as ofcli_version, __name__ as ofcli_name
@@ -166,15 +166,24 @@ def fetch_jws_from_url(url: URL) -> str:
     :return: The JWS as a string.
     """
     response = None
+    last_exception = None
     for tried_url in [url.remove_trailing_slashes(), str(url)]:
-        response = requests.request("GET", tried_url, verify=VERIFY_SSL)
+        try:
+            response = requests.request("GET", tried_url, verify=VERIFY_SSL)
+            if response.status_code == 200:
+                return response.text
+        except Exception as e:
+            logger.debug(e)
+            last_exception = e
+            continue
 
-        if response.status_code == 200:
-            return response.text
-
-    raise ValueError(
-        "Could not fetch entity statement from %s. Status code: %s"
-        % (url, response.status_code if response is not None else "unknown")
+    if response is not None:
+        raise InternalException(
+            "Could not fetch entity statement from %s. Status code: %s"
+            % (url, response.status_code)
+        )
+    raise InternalException(str(last_exception)) if last_exception else Exception(
+        "Could not fetch entity statement from %s." % url
     )
 
 
@@ -186,13 +195,15 @@ def get_payload(jws_str: str) -> dict:
     """
     jws = factory(jws_str)
     if not jws:
-        raise ValueError("Could not parse entity configuration as JWS.")
+        raise InternalException("Could not parse entity configuration as JWS.")
 
     payload = jws.jwt.payload()
     if not payload:
-        raise ValueError("Could not parse entity configuration payload.")
+        raise InternalException("Could not parse entity configuration payload.")
     if not isinstance(payload, dict):
-        raise ValueError("Entity configuration payload is not a mapping: %s" % payload)
+        raise InternalException(
+            "Entity configuration payload is not a mapping: %s" % payload
+        )
 
     return payload
 
@@ -211,15 +222,17 @@ def fetch_entity_statement(entity_id: URL, issuer: URL) -> str:
         "metadata"
     )
     if not issuer_metadata:
-        raise Exception("No metadata found in entity configuration.")
+        raise InternalException("No metadata found in entity configuration.")
     try:
         fe = issuer_metadata["federation_entity"]
     except KeyError:
-        raise Exception("Leaf entities cannot publish statements about other entities.")
+        raise InternalException(
+            "Leaf entities cannot publish statements about other entities."
+        )
     try:
         fetch_url = URL(fe["federation_fetch_endpoint"])
     except KeyError:
-        raise Exception("No federation_fetch_endpoint found in metadata!")
+        raise InternalException("No federation_fetch_endpoint found in metadata!")
 
     last_exception = None
     for entity_id_url in [entity_id.remove_trailing_slashes(), str(entity_id)]:
@@ -245,15 +258,15 @@ def get_subordinates(
 ) -> list[str]:
     metadata = entity.get("metadata")
     if not metadata:
-        raise Exception("No metadata found in entity configuration.")
+        raise InternalException("No metadata found in entity configuration.")
     try:
         le = metadata["federation_entity"]
     except KeyError:
-        raise Exception("Leaf entities cannot have subordinates.")
+        raise InternalException("Leaf entities cannot have subordinates.")
     try:
         list_url = URL(le["federation_list_endpoint"])
     except KeyError:
-        raise Exception("No federation_list_endpoint found in metadata!")
+        raise InternalException("No federation_list_endpoint found in metadata!")
 
     params = {}
     if entity_type:
@@ -267,7 +280,7 @@ def get_subordinates(
     response = requests.request("GET", str(url), verify=VERIFY_SSL)
 
     if response.status_code != 200:
-        raise ValueError(
+        raise InternalException(
             "Could not fetch subordinates from %s. Status code: %s"
             % (url, response.status_code)
         )
@@ -326,11 +339,11 @@ def get_entity_type(entity: EntityStatement) -> str:
     # logger.debug(f"Getting metadata type for {entity.get('sub')}")
     md = entity.get("metadata")
     if not md:
-        raise Exception("No metadata found in entity statement")
+        raise InternalException("No metadata found in entity statement")
     etypes = list(md.to_dict().keys())
     # logger.debug(f"Found metadata types: {etypes}")
     if len(etypes) == 0:
-        raise Exception("Empty metadata")
+        raise InternalException("Empty metadata")
     if len(etypes) > 1:
         logger.warning(
             "Entity has multiple metadata types, choosing one randomly with priority for non-leaf entities."

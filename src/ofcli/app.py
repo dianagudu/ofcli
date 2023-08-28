@@ -1,16 +1,55 @@
 from fastapi import FastAPI, Request
+from fastapi import APIRouter as FastAPIRouter
+from fastapi.types import DecoratedCallable
 from fastapi.params import Query, Path
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
+from fastapi.exceptions import (
+    RequestValidationError,
+    ResponseValidationError,
+)
+from pydantic import ValidationError
+
 import uvicorn
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Any, Callable
 from pydantic import HttpUrl
 
-from ofcli import utils, api
+from ofcli import utils, api, __version__
+from ofcli.exceptions import (
+    validation_exception_handler,
+    request_validation_exception_handler,
+    internal_exception_handler,
+    InternalException,
+)
 
-app = FastAPI()
+
+class APIRouter(FastAPIRouter):
+    # remove trailing slashes from paths
+    def api_route(
+        self, path: str, *, include_in_schema: bool = True, **kwargs: Any
+    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+        if path.endswith("/") and len(path) > 1:
+            path = path[:-1]
+
+        add_path = super().api_route(
+            path, include_in_schema=include_in_schema, **kwargs
+        )
+
+        alternate_path = path + "/"
+        add_alternate_path = super().api_route(
+            alternate_path, include_in_schema=False, **kwargs
+        )
+
+        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            add_alternate_path(func)
+            return add_path(func)
+
+        return decorator
 
 
-@app.get(path="/", name="index", description="Retrieve general API information.")
+router = APIRouter(prefix="")
+
+
+@router.get(path="/", name="index", description="Retrieve general API information.")
 async def index(request: Request) -> list[dict[str, str]]:
     def get_route_info(route):
         info = {
@@ -27,7 +66,7 @@ async def index(request: Request) -> list[dict[str, str]]:
     return url_list
 
 
-@app.get(
+@router.get(
     path="/trustchains/{entity_id:path}",
     name="trustchains",
     description="Builds all trustchains for a given entity and prints them. If any trust anchor is specified, only trustchains ending in the trust anchor will be returned.",
@@ -54,7 +93,7 @@ async def trustchains(
     )
     if format == utils.OutputType.dot:
         if not graph:
-            raise Exception("No graph to export.")
+            raise InternalException("No graph to export.")
         return Response(graph.to_string(), media_type="file/dot")
     if format == utils.OutputType.text:
         response = ""
@@ -68,7 +107,7 @@ async def trustchains(
     return JSONResponse(response)
 
 
-@app.get(
+@router.get(
     path="/subtree/{entity_id:path}",
     name="subtree",
     description="Discover federation subtree using given entity as root.",
@@ -87,7 +126,7 @@ async def subtree(
     )
     if format == utils.OutputType.dot:
         if not graph:
-            raise Exception("No graph to export.")
+            raise InternalException("No graph to export.")
         return Response(graph.to_string(), media_type="file/dot")
     if format == utils.OutputType.text:
         return PlainTextResponse(utils.subtree_to_string(tree))
@@ -95,7 +134,7 @@ async def subtree(
     return JSONResponse(tree)
 
 
-@app.get(
+@router.get(
     path="/resolve/{entity_id:path}",
     name="resolve",
     description="Resolve metadata and Trust Marks for an entity, given a trust anchor and entity type.",
@@ -116,7 +155,7 @@ async def resolve(
     return metadata
 
 
-@app.get(
+@router.get(
     path="/discovery/{entity_id:path}",
     name="discovery",
     description="Discover all OPs in the federation available to a given RP. If no trust anchor is specified, all possible trust anchors will be used.",
@@ -141,7 +180,7 @@ async def discovery(
     return ops
 
 
-@app.get(
+@router.get(
     path="/entity/{entity_id:path}",
     name="entity",
     description="Returns the decoded self-signed entity configuration for given entity_id.",
@@ -164,7 +203,7 @@ async def entity(
     return configuration
 
 
-@app.get(path="/fetch", name="fetch", description="Fetches an entity statement.")
+@router.get(path="/fetch", name="fetch", description="Fetches an entity statement.")
 async def fetch(
     entity_id: Annotated[
         HttpUrl,
@@ -185,7 +224,7 @@ async def fetch(
     return statement
 
 
-@app.get(
+@router.get(
     path="/list/{entity_id:path}",
     name="list",
     description="Lists all subordinates of an entity.",
@@ -209,6 +248,18 @@ async def list_subordinates(
         entity_type=entity_type.value if entity_type else None,
     )
     return subordinates
+
+
+app = FastAPI(
+    title="ofapi",
+    description="REST API to explore OpenId Connect Federations",
+    version=__version__,
+)
+app.include_router(router)
+app.add_exception_handler(RequestValidationError, request_validation_exception_handler)
+app.add_exception_handler(ValidationError, validation_exception_handler)
+app.add_exception_handler(ResponseValidationError, validation_exception_handler)
+app.add_exception_handler(InternalException, internal_exception_handler)
 
 
 def main():

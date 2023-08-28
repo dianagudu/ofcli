@@ -4,6 +4,7 @@ import pygraphviz
 import click
 
 from ofcli.message import Metadata
+from ofcli.exceptions import InternalException
 from ofcli.utils import (
     URL,
     EntityStatementPlus,
@@ -74,13 +75,13 @@ class TrustChain:
     def get_trust_anchor(self) -> URL:
         # return last link in chain
         if len(self._chain) == 0:
-            raise Exception("Malformed chain. No trust anchor found.")
+            raise InternalException("Malformed chain. No trust anchor found.")
         return URL(self._chain[-1].entity_id)
 
     def get_metadata(self, entity_type: str) -> dict:
         md = self._metadata.get(entity_type)
         if not md:
-            raise Exception(f"No metadata found for entity type {entity_type}")
+            raise InternalException(f"No metadata found for entity type {entity_type}")
         return Metadata(**md).to_dict()
 
     def get_combined_policy(self) -> dict:
@@ -113,7 +114,7 @@ class TrustTree:
         logger.debug(f"Resolving {self.entity.get('sub')}")
         sub = self.entity.get("sub")
         if not sub:
-            raise Exception("No sub found in entity statement.")
+            raise InternalException("No sub found in entity statement.")
         sub = URL(sub)
         seen.append(sub)
         logger.debug(f"Seen: {seen}")

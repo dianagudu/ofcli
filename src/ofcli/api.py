@@ -5,6 +5,7 @@ import pygraphviz
 from ofcli import utils, trustchain, fedtree
 from ofcli.utils import URL
 from ofcli.message import EntityStatement, Metadata
+from ofcli.exceptions import InternalException
 
 
 def get_entity_configuration(entity_id: str, verify: bool = False) -> dict:
@@ -33,7 +34,7 @@ def get_entity_metadata(entity_id: str, verify: bool = False) -> dict:
         utils.get_self_signed_entity_configuration(URL(entity_id))
     ).get("metadata", None)
     if not metadata:
-        raise Exception("No metadata found in entity configuration.")
+        raise InternalException("No metadata found in entity configuration.")
     if verify:
         Metadata(**metadata).verify()
     return metadata
@@ -49,7 +50,7 @@ def get_entity_jwks(entity_id: str) -> dict:
         utils.get_self_signed_entity_configuration(URL(entity_id))
     ).get("jwks")
     if not jwks:
-        raise Exception("No jwks found in entity configuration.")
+        raise InternalException("No jwks found in entity configuration.")
     return jwks
 
 
@@ -99,7 +100,7 @@ def discover(entity_id: str, tas: list[str] = []) -> list[str]:
     metadata = get_entity_metadata(entity_id=entity_id)
     # check if it is an openid_relying_party
     if not metadata.get("openid_relying_party"):
-        raise Exception("Entity is not an OpenID Relying Party.")
+        raise InternalException("Entity is not an OpenID Relying Party.")
     # if no trust anchors are given, infer them from building the trustchains
     trust_anchors = []
     if len(tas) == 0:
@@ -107,7 +108,7 @@ def discover(entity_id: str, tas: list[str] = []) -> list[str]:
         resolver.resolve()
         chains = resolver.chains()
         if len(chains) == 0:
-            raise Exception("Could not find any trust anchors.")
+            raise InternalException("Could not find any trust anchors.")
         for chain in chains:
             trust_anchors.append(chain.get_trust_anchor())
         # filter duplicates
@@ -148,6 +149,6 @@ def resolve_entity(entity_id: str, ta: str, entity_type: str) -> dict:
     resolver.resolve()
     chains = resolver.chains()
     if len(chains) == 0:
-        raise Exception("Could not build trustchain to trust anchor.")
+        raise InternalException("Could not build trustchain to trust anchor.")
     # TODO: select the shortest chain if more than one
     return chains[0].get_metadata(entity_type)

@@ -25,6 +25,7 @@ from ofcli.utils import (
     print_version,
 )
 from ofcli.logging import logger
+from ofcli.exceptions import InternalException
 
 
 def safe_cli():
@@ -253,7 +254,7 @@ def trustchains(
     print_trustchains(chains, details)
     if export:
         if not graph:
-            raise Exception("No graph to export.")
+            raise InternalException("No graph to export.")
         graph.write(export)
 
 
@@ -393,7 +394,7 @@ def get_subtree(entity_id: str, export: str | None, details: bool, **kwargs):
     print_subtree(tree, details)
     if export:
         if not graph:
-            raise Exception("No graph to export.")
+            raise InternalException("No graph to export.")
         graph.write(export)
 
 

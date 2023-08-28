@@ -1,6 +1,7 @@
 import pygraphviz
 
 from ofcli.logging import logger
+from ofcli.exceptions import InternalException
 from ofcli.utils import (
     EntityStatementPlus,
     URL,
@@ -23,7 +24,7 @@ class FedTree:
     def discover(self) -> None:
         # probably should also verify things here
         if not self.entity.get("metadata"):
-            raise Exception("No metadata found in entity configuration.")
+            raise InternalException("No metadata found in entity configuration.")
         try:
             subordinates = get_subordinates(self.entity)
             for sub in subordinates:
