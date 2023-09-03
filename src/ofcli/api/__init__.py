@@ -35,10 +35,7 @@ def create_app():
     app.include_router(api_router_v1, prefix="", tags=["API"])
     app.include_router(api_router_v1, prefix=settings.API_V1_STR, tags=["API v1"])
     app.include_router(
-        api_router_v1,
-        prefix=settings.API_LATEST_STR,
-        tags=["API latest"],
-        # include_in_schema=False,
+        api_router_v1, prefix=settings.API_LATEST_STR, tags=["API latest"]
     )
 
     return app

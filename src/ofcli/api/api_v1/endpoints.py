@@ -41,6 +41,76 @@ async def index(request: Request) -> list[dict[str, str]]:
 
 
 @router.get(
+    path="/entity/{entity_id:path}",
+    name="entity",
+    description="Returns the decoded self-signed entity configuration for given entity_id.",
+)
+async def entity(
+    entity_id: Annotated[
+        HttpUrl,
+        Path(
+            description="Entity ID",
+        ),
+    ],
+    verify: Annotated[
+        bool,
+        Query(description="Whether to verify the entity configuration's signature"),
+    ] = False,
+):
+    configuration = core.get_entity_configuration(
+        entity_id.unicode_string(), verify=verify
+    )
+    return configuration
+
+
+@router.get(path="/fetch", name="fetch", description="Fetches an entity statement.")
+async def fetch(
+    entity_id: Annotated[
+        HttpUrl,
+        Query(
+            description="Entity ID",
+        ),
+    ],
+    issuer: Annotated[
+        HttpUrl,
+        Query(
+            description="Issuer ID",
+        ),
+    ],
+):
+    statement = core.fetch_entity_statement(
+        entity_id.unicode_string(), issuer.unicode_string()
+    )
+    return statement
+
+
+@router.get(
+    path="/list/{entity_id:path}",
+    name="list",
+    description="Lists all subordinates of an entity.",
+)
+async def list_subordinates(
+    entity_id: Annotated[
+        HttpUrl,
+        Path(
+            description="Entity ID",
+        ),
+    ],
+    entity_type: Annotated[
+        Optional[EntityType],
+        Query(
+            description="Entity type to filter for.",
+        ),
+    ] = None,
+):
+    subordinates = core.list_subordinates(
+        entity_id.unicode_string(),
+        entity_type=entity_type.value if entity_type else None,
+    )
+    return subordinates
+
+
+@router.get(
     path="/trustchains/{entity_id:path}",
     name="trustchains",
     description="Builds all trustchains for a given entity and prints them. If any trust anchor is specified, only trustchains ending in the trust anchor will be returned.",
@@ -150,73 +220,3 @@ async def discovery(
         entity_id.unicode_string(), [ta_item.unicode_string() for ta_item in ta]
     )
     return ops
-
-
-@router.get(
-    path="/entity/{entity_id:path}",
-    name="entity",
-    description="Returns the decoded self-signed entity configuration for given entity_id.",
-)
-async def entity(
-    entity_id: Annotated[
-        HttpUrl,
-        Path(
-            description="Entity ID",
-        ),
-    ],
-    verify: Annotated[
-        bool,
-        Query(description="Whether to verify the entity configuration's signature"),
-    ] = False,
-):
-    configuration = core.get_entity_configuration(
-        entity_id.unicode_string(), verify=verify
-    )
-    return configuration
-
-
-@router.get(path="/fetch", name="fetch", description="Fetches an entity statement.")
-async def fetch(
-    entity_id: Annotated[
-        HttpUrl,
-        Query(
-            description="Entity ID",
-        ),
-    ],
-    issuer: Annotated[
-        HttpUrl,
-        Query(
-            description="Issuer ID",
-        ),
-    ],
-):
-    statement = core.fetch_entity_statement(
-        entity_id.unicode_string(), issuer.unicode_string()
-    )
-    return statement
-
-
-@router.get(
-    path="/list/{entity_id:path}",
-    name="list",
-    description="Lists all subordinates of an entity.",
-)
-async def list_subordinates(
-    entity_id: Annotated[
-        HttpUrl,
-        Path(
-            description="Entity ID",
-        ),
-    ],
-    entity_type: Annotated[
-        Optional[EntityType],
-        Query(
-            description="Entity type to filter for.",
-        ),
-    ] = None,
-):
-    subordinates = core.list_subordinates(
-        entity_id.unicode_string(),
-        entity_type=entity_type.value if entity_type else None,
-    )
-    return subordinates
