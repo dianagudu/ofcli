@@ -1,4 +1,11 @@
-# oidcfed
+# ofcli
+
+[![PyPI version](https://badge.fury.io/py/ofcli.svg)](https://badge.fury.io/py/ofcli)
+[![Python versions](https://img.shields.io/pypi/pyversions/ofcli.svg)](https://pypi.python.org/pypi/ofcli)
+[![License](https://img.shields.io/pypi/l/ofcli.svg)](https://pypi.python.org/pypi/ofcli)
+[![Build Status](https://github.com/dianagudu/ofcli/badges/main/pipeline.svg)](https://github.com/dianagudu/ofcli/-/pipelines)
+[![Coverage report](https://github.com/dianagudu/ofcli/badges/main/coverage.svg)](https://github.com/dianagudu/ofcli/-/pipelines)
+![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)
 
 This is a helper CLI tool for exploring OIDC federations.
 
@@ -97,16 +104,11 @@ Discovering all entities in a sub-federation given by its root entity:
 
 ```bash
 $ ofcli subtree https://swamid.fedservice.lh --export swamid-fed
-{
-  "https://swamid.fedservice.lh": {
-    "https://umu.fedservice.lh": {
-      "https://op.fedservice.lh": {}
-    },
-    "https://lu.fedservice.lh": {
-      "https://auto.fedservice.lh": {}
-    }
-  }
-}
+- https://swamid.fedservice.lh (federation_entity)
+  - https://umu.fedservice.lh (federation_entity)
+    - https://op.fedservice.lh (openid_provider)
+  - https://lu.fedservice.lh (federation_entity)
+    - https://auto.fedservice.lh (openid_relying_party)
 ```
 
 This will export the federation tree for the entity `https://swamid.fedservice.lh` to the file [examples/swamid-fed.dot](examples/swamid-fed.json), which can be rendered as an image as described above.
@@ -123,14 +125,35 @@ $ ofcli resolve https://op.fedservice.lh --ta https://trust-anchor.spid-cie.feds
 
 This will return the metadata for the entity `https://op.fedservice.lh` as it would be seen by an entity that has `https://trust-anchor.spid-cie.fedservice.lh/` as a trust anchor (see [examples/op-resolved-metadata.json](examples/op-resolved-metadata.json)).
 
+## REST API
+
+`ofcli` also provides a REST API for the same functionality as the CLI. The API is documented using [OpenAPI](https://swagger.io/specification/) and can be explored using the [Swagger UI](https://swagger.io/tools/swagger-ui/).
+
+To run the API, use the `ofapi` command. This will start a web server on port 12345 by default, but this can be changed using the `--port` option.
+
+```bash
+$ ofapi --port 8080
+```
+
+The API consists of the following endpoints:
+
+- `/entity/{entity_id:path}`: Returns the decoded self-signed entity configuration for given entity_id.
+- `/fetch`: Fetches an entity statement for a given entity ID from a given federation entity.
+- `/list/{entity_id:path}`: Lists all subordinates of an entity.
+- `/trustchains/{entity_id:path}`: Builds all trustchains for a given entity and prints them. If any trust anchor is specified via a query parameter, only trustchains ending in the trust anchor will be returned.
+- `/subtree/{entity_id:path}`: Discover federation subtree using given entity as root.
+- `/resolve/{entity_id:path}`: Resolve metadata and Trust Marks for an entity, given a trust anchor and entity type via query parameters.
+- `/discovery/{entity_id:path}`: Discover all OPs in the federation available to a given RP. If no trust anchor is specified via query parameters, all possible trust anchors will be used.
+
+
 ## Development
 
 ### Installing the development version
 
-The development version of `ofcli` can be installed from the `main` branch of the [git repository](https://gitlab.software.geant.org/TI_Incubator/oidcfed/ofcli) and can be installed as follows (note the `-e` switch to install it in editable or "develop mode"):
+The development version of `ofcli` can be installed from the `main` branch of the [git repository](https://github.com/dianagudu/ofcli) and can be installed as follows (note the `-e` switch to install it in editable or "develop mode"):
 
 ```bash
-git clone https://gitlab.software.geant.org/TI_Incubator/oidcfed/ofcli
+git clone https://github.com/dianagudu/ofcli
 cd ofcli
 pip install -e .
 ```
