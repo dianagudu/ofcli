@@ -1,52 +1,22 @@
-from fastapi import FastAPI, Request
-from fastapi import APIRouter as FastAPIRouter
-from fastapi.types import DecoratedCallable
+from fastapi import Request
 from fastapi.params import Query, Path
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
-from fastapi.exceptions import (
-    RequestValidationError,
-    ResponseValidationError,
-)
-from pydantic import ValidationError
-
-import uvicorn
-from typing import Annotated, Optional, Any, Callable
+from typing import Annotated, Optional
 from pydantic import HttpUrl
 
-from ofcli import utils, api, __version__
+from ofcli import __version__
+from ofcli import core
+from ofcli.utils import (
+    APIRouter,
+    EntityType,
+    OutputType,
+    subtree_to_string,
+)
 from ofcli.exceptions import (
-    validation_exception_handler,
-    request_validation_exception_handler,
-    internal_exception_handler,
     InternalException,
 )
 
-
-class APIRouter(FastAPIRouter):
-    # remove trailing slashes from paths
-    def api_route(
-        self, path: str, *, include_in_schema: bool = True, **kwargs: Any
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
-        if path.endswith("/") and len(path) > 1:
-            path = path[:-1]
-
-        add_path = super().api_route(
-            path, include_in_schema=include_in_schema, **kwargs
-        )
-
-        alternate_path = path + "/"
-        add_alternate_path = super().api_route(
-            alternate_path, include_in_schema=False, **kwargs
-        )
-
-        def decorator(func: DecoratedCallable) -> DecoratedCallable:
-            add_alternate_path(func)
-            return add_path(func)
-
-        return decorator
-
-
-router = APIRouter(prefix="")
+router = APIRouter()
 
 
 @router.get(path="/", name="index", description="Retrieve general API information.")
@@ -62,7 +32,9 @@ async def index(request: Request) -> list[dict[str, str]]:
             info["description"] = route.description
         return info
 
-    url_list = [get_route_info(route) for route in request.app.routes]
+    url_list = [
+        get_route_info(route) for route in request.app.routes if route.include_in_schema
+    ]
     return url_list
 
 
@@ -84,23 +56,23 @@ async def trustchains(
             description="Trust anchor ID to use for building trustchains (multiple TAs possible)."
         ),
     ] = [],
-    format: utils.OutputType = utils.OutputType.json,
+    format: OutputType = OutputType.json,
 ):
-    chains, graph = api.get_trustchains(
+    chains, graph = core.get_trustchains(
         entity_id.unicode_string(),
         [ta_item.unicode_string() for ta_item in ta],
-        format == utils.OutputType.dot,
+        format == OutputType.dot,
     )
-    if format == utils.OutputType.dot:
+    if format == OutputType.dot:
         if not graph:
             raise InternalException("No graph to export.")
         return Response(graph.to_string(), media_type="file/dot")
-    if format == utils.OutputType.text:
+    if format == OutputType.text:
         response = ""
         for chain in chains:
             response += "* " + (str(chain)) + "\n"
         return PlainTextResponse(response)
-    # if format == utils.OutputType.json:
+    # if format == OutputType.json:
     response = {}
     for i, chain in enumerate(chains):
         response[f"chain {i}"] = chain.to_json()
@@ -119,18 +91,16 @@ async def subtree(
             description="Entity ID to use as root for federation subtree.",
         ),
     ],
-    format: utils.OutputType = utils.OutputType.json,
+    format: OutputType = OutputType.json,
 ):
-    tree, graph = api.subtree(
-        entity_id.unicode_string(), format == utils.OutputType.dot
-    )
-    if format == utils.OutputType.dot:
+    tree, graph = core.subtree(entity_id.unicode_string(), format == OutputType.dot)
+    if format == OutputType.dot:
         if not graph:
             raise InternalException("No graph to export.")
         return Response(graph.to_string(), media_type="file/dot")
-    if format == utils.OutputType.text:
-        return PlainTextResponse(utils.subtree_to_string(tree))
-    # if format == utils.OutputType.json:
+    if format == OutputType.text:
+        return PlainTextResponse(subtree_to_string(tree))
+    # if format == OutputType.json:
     return JSONResponse(tree)
 
 
@@ -147,9 +117,9 @@ async def resolve(
         ),
     ],
     ta: Annotated[HttpUrl, Query(description="Trust anchor ID to use for resolving.")],
-    entity_type: Annotated[utils.EntityType, Query()],
+    entity_type: Annotated[EntityType, Query()],
 ):
-    metadata = api.resolve_entity(
+    metadata = core.resolve_entity(
         entity_id.unicode_string(), ta.unicode_string(), entity_type.value
     )
     return metadata
@@ -174,7 +144,7 @@ async def discovery(
         ),
     ] = [],
 ):
-    ops = api.discover(
+    ops = core.discover(
         entity_id.unicode_string(), [ta_item.unicode_string() for ta_item in ta]
     )
     return ops
@@ -197,7 +167,7 @@ async def entity(
         Query(description="Whether to verify the entity configuration's signature"),
     ] = False,
 ):
-    configuration = api.get_entity_configuration(
+    configuration = core.get_entity_configuration(
         entity_id.unicode_string(), verify=verify
     )
     return configuration
@@ -218,7 +188,7 @@ async def fetch(
         ),
     ],
 ):
-    statement = api.fetch_entity_statement(
+    statement = core.fetch_entity_statement(
         entity_id.unicode_string(), issuer.unicode_string()
     )
     return statement
@@ -237,30 +207,14 @@ async def list_subordinates(
         ),
     ],
     entity_type: Annotated[
-        Optional[utils.EntityType],
+        Optional[EntityType],
         Query(
             description="Entity type to filter for.",
         ),
     ] = None,
 ):
-    subordinates = api.list_subordinates(
+    subordinates = core.list_subordinates(
         entity_id.unicode_string(),
         entity_type=entity_type.value if entity_type else None,
     )
     return subordinates
-
-
-app = FastAPI(
-    title="ofapi",
-    description="REST API to explore OpenId Connect Federations",
-    version=__version__,
-)
-app.include_router(router)
-app.add_exception_handler(RequestValidationError, request_validation_exception_handler)
-app.add_exception_handler(ValidationError, validation_exception_handler)
-app.add_exception_handler(ResponseValidationError, validation_exception_handler)
-app.add_exception_handler(InternalException, internal_exception_handler)
-
-
-def main():
-    uvicorn.run("ofcli.app:app", host="0.0.0.0", port=12345, log_level="info")

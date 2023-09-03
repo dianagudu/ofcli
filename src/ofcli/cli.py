@@ -6,7 +6,7 @@ import click_logging
 from functools import wraps
 import logging
 
-from ofcli.api import (
+from ofcli.core import (
     get_entity_configuration,
     get_entity_metadata,
     get_entity_jwks,

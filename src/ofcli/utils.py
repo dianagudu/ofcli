@@ -11,8 +11,11 @@ import pygraphviz
 import requests
 from cryptojwt.jws.jws import factory
 import enum
-from ofcli.exceptions import InternalException
 
+from fastapi.types import DecoratedCallable
+from fastapi import APIRouter as FastAPIRouter
+
+from ofcli.exceptions import InternalException
 from ofcli.logging import logger
 from ofcli import __version__ as ofcli_version, __name__ as ofcli_name
 from ofcli.message import EntityStatement
@@ -365,3 +368,27 @@ class EntityStatementPlus(EntityStatement):
     @staticmethod
     def fetch(url: URL) -> "EntityStatementPlus":
         return EntityStatementPlus(get_self_signed_entity_configuration(url))
+
+
+class APIRouter(FastAPIRouter):
+    # remove trailing slashes from paths
+    def api_route(
+        self, path: str, *, include_in_schema: bool = True, **kwargs: t.Any
+    ) -> t.Callable[[DecoratedCallable], DecoratedCallable]:
+        if path.endswith("/") and len(path) > 1:
+            path = path[:-1]
+
+        add_path = super().api_route(
+            path, include_in_schema=include_in_schema, **kwargs
+        )
+
+        alternate_path = path + "/"
+        add_alternate_path = super().api_route(
+            alternate_path, include_in_schema=False, **kwargs
+        )
+
+        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            add_alternate_path(func)
+            return add_path(func)
+
+        return decorator

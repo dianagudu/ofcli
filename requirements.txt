@@ -6,3 +6,4 @@ pygraphviz
 fastapi
 uvicorn[standard]
 oidcmsg
+pydantic_settings
