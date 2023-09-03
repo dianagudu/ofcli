@@ -32,9 +32,14 @@ def create_app():
     app.add_exception_handler(ResponseValidationError, validation_exception_handler)
     app.add_exception_handler(InternalException, internal_exception_handler)
 
-    app.include_router(api_router_v1)
-    app.include_router(api_router_v1, prefix=settings.API_V1_STR)
-    app.include_router(api_router_v1, prefix=settings.API_LATEST_STR)
+    app.include_router(api_router_v1, prefix="", tags=["API"])
+    app.include_router(api_router_v1, prefix=settings.API_V1_STR, tags=["API v1"])
+    app.include_router(
+        api_router_v1,
+        prefix=settings.API_LATEST_STR,
+        tags=["API latest"],
+        # include_in_schema=False,
+    )
 
     return app
 

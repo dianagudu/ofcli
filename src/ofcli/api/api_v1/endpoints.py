@@ -33,7 +33,9 @@ async def index(request: Request) -> list[dict[str, str]]:
         return info
 
     url_list = [
-        get_route_info(route) for route in request.app.routes if route.include_in_schema
+        get_route_info(route)
+        for route in request.app.routes
+        if route.include_in_schema and route.path.startswith(request.url.path)
     ]
     return url_list
 
