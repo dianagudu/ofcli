@@ -159,7 +159,9 @@ def well_known_url(entity_id: URL) -> URL:
     :param entity_id: The entity ID to get the well-known URL for.
     :return: The well-known URL.
     """
-    return URL(str(entity_id).rstrip("/") + "/.well-known/openid-federation")
+    url_parts = list(urllib.parse.urlparse(str(entity_id)))
+    url_parts[2] = url_parts[2].rstrip("/") + "/.well-known/openid-federation"
+    return URL(urllib.parse.urlunparse(url_parts))
 
 
 def fetch_jws_from_url(url: URL) -> str:
