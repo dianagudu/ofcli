@@ -75,6 +75,11 @@ def test_url_remove_trailing_slashes(test_url_str, result_str):
             {"param": "other", "param2": "value2"},
             "https://example.com?param=other&param2=value2",
         ),
+        (
+            "https://example.com",
+            {"sub": "https://op.com", "iss": "https://ta.com"},
+            "https://example.com?sub=https://op.com&iss=https://ta.com",
+        ),
     ],
 )
 def test_url_add_query_params(test_url_str, params, result_str):

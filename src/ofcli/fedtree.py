@@ -5,6 +5,7 @@ from ofcli.exceptions import InternalException
 from ofcli.utils import (
     EntityStatementPlus,
     URL,
+    add_edge_to_graph,
     get_self_signed_entity_configuration,
     get_subordinates,
     get_entity_type,
@@ -30,6 +31,8 @@ class FedTree:
             for sub in subordinates:
                 subordinate = FedTree(get_self_signed_entity_configuration(URL(sub)))
                 subordinate.discover()
+                # logger.debug(f"Adding subordinate {subordinate.entity.get('sub')}")
+                # logger.debug(f"{subordinate.entity}")
                 self.subordinates.append(subordinate)
         except Exception as e:
             logger.debug("Could not fetch subordinates, likely a leaf entity: %s" % e)
@@ -40,7 +43,7 @@ class FedTree:
             subordinates.update(sub.serialize())
         subtree = {
             "entity_type": get_entity_type(self.entity),
-            "entity_configuration": self.entity.jwt,
+            "entity_configuration": self.entity.get_jwt(),
         }
         if len(subordinates) > 0:
             subtree.update({"subordinates": subordinates})  # type: ignore
@@ -56,12 +59,17 @@ class FedTree:
         return entities
 
     def _to_graph(self, graph: pygraphviz.AGraph) -> None:
+        logger.debug(f"Adding node for {self.entity.get('sub')}")
         add_node_to_graph(
             graph, self.entity, len(self.entity.get("authority_hints", [])) > 0
         )
         for sub in self.subordinates:
+            logger.debug(f"Processing subgraph for {sub.entity.get('sub')}")
             sub._to_graph(graph)
-            graph.add_edge(self.entity.get("sub"), sub.entity.get("sub"))
+            logger.debug(
+                f"Adding edge for {self.entity.get('sub')} -> {sub.entity.get('sub')}"
+            )
+            add_edge_to_graph(graph, self.entity, sub.entity)
 
     def to_graph(self) -> pygraphviz.AGraph:
         graph = pygraphviz.AGraph(

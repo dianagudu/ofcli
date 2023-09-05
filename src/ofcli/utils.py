@@ -25,10 +25,11 @@ VERIFY_SSL = True
 
 # define colors for different metadata types
 class ColorScheme:
-    OP = "#01425E"
-    RP = "#DD4C1A"
-    IA = "#5B317B"
-    TA = "#C50679"
+    OP = "#01425Eee"
+    RP = "#DD4C1Aee"
+    IA = "#5B317Bee"
+    TA = "#C50679ee"
+    EDGE = "#646464fe"
 
 
 COLORS = {
@@ -91,7 +92,9 @@ class URL:
         url_parts = list(urllib.parse.urlparse(str(self)))
         query = dict(urllib.parse.parse_qsl(url_parts[4]))
         query.update(params)
-        url_parts[4] = urllib.parse.urlencode(query)
+        # do not urlencode the query parameters, as the URL is used for fetching
+        # and the query parameters are already encoded
+        url_parts[4] = urllib.parse.urlencode(query, safe=":/")
         return URL(urllib.parse.urlunparse(url_parts))
 
     def remove_trailing_slashes(self) -> str:
@@ -102,6 +105,21 @@ class URL:
         url_parts = list(urllib.parse.urlparse(str(self)))
         url_parts[2] = url_parts[2].rstrip("/")
         return urllib.parse.urlunparse(url_parts)
+
+
+class EntityStatementPlus(EntityStatement):
+    _jwt: str
+
+    def __init__(self, jwt: str):
+        super().__init__(**get_payload(jwt))
+        self._jwt = jwt
+
+    def get_jwt(self) -> str:
+        return self._jwt
+
+    @staticmethod
+    def fetch(url: URL) -> "EntityStatementPlus":
+        return EntityStatementPlus(get_self_signed_entity_configuration(url))
 
 
 def set_verify_ssl(ctx, param, value):
@@ -241,17 +259,13 @@ def fetch_entity_statement(entity_id: URL, issuer: URL) -> str:
 
     last_exception = None
     for entity_id_url in [entity_id.remove_trailing_slashes(), str(entity_id)]:
-        for issuer_url in [issuer.remove_trailing_slashes(), str(issuer)]:
-            try:
-                return fetch_jws_from_url(
-                    fetch_url.add_query_params(
-                        {"iss": issuer_url, "sub": entity_id_url}
-                    )
-                )
-
-            except Exception as e:
-                last_exception = e
-                logger.debug(e)
+        try:
+            return fetch_jws_from_url(
+                fetch_url.add_query_params({"sub": entity_id_url})
+            )
+        except Exception as e:
+            last_exception = e
+            logger.debug(e)
     raise last_exception if last_exception else Exception("Unknown error")
 
 
@@ -323,24 +337,51 @@ def print_subtree(serialized_subtree: dict, details: bool):
 
 
 def add_node_to_graph(
-    graph: pygraphviz.AGraph, entity: EntityStatement, is_ta: bool = False
+    graph: pygraphviz.AGraph, entity: EntityStatementPlus, is_ta: bool = False
 ):
     entity_type = get_entity_type(entity)
     color = COLORS[entity_type]
     if entity_type == "federation_entity" and not is_ta:
         color = ColorScheme.IA
+    try:
+        comment = entity.to_dict()
+    except Exception as e:
+        comment = entity.get_jwt()
     graph.add_node(
         entity.get("sub"),
-        style="filled",
+        shape="rect",
+        style="filled, rounded",
         fillcolor=color,
+        color="transparent",
         fontcolor="white",
+        fontname="Kollektif, Handlee, Barlow Semi Condensed, sans-serif",
+        fontsize=12,
+        fontweight="regular",
         label=f"<{entity.get('sub')} <br /> <font point-size='10'>{entity_type}</font>>",
         URL=entity.get("sub"),
-        comment=entity.to_dict(),
+        comment=comment,
     )
 
 
-def get_entity_type(entity: EntityStatement) -> str:
+def add_edge_to_graph(
+    graph: pygraphviz.AGraph,
+    start_entity: EntityStatementPlus,
+    end_entity: EntityStatementPlus,
+):
+    try:
+        graph.add_edge(
+            start_entity.get("sub"),
+            end_entity.get("sub"),
+            color=ColorScheme.EDGE,
+            arrowhead="vee",
+            arrowsize=0.7,
+            penwidth=1,
+        )
+    except Exception as e:
+        logger.warning(f"Could not add edge: {e}")
+
+
+def get_entity_type(entity: EntityStatementPlus) -> str:
     # logger.debug(f"Getting metadata type for {entity.get('sub')}")
     md = entity.get("metadata")
     if not md:
@@ -356,20 +397,6 @@ def get_entity_type(entity: EntityStatement) -> str:
         # if "federation_entity" in etypes:
         #     return [t for t in etypes if t != "federation_entity"][0]
     return etypes[0]
-
-
-class EntityStatementPlus(EntityStatement):
-    jwt: str
-    entity_id: str
-
-    def __init__(self, jwt: str):
-        super().__init__(**get_payload(jwt))
-        self.jwt = jwt
-        self.entity_id = self.get("sub", "")
-
-    @staticmethod
-    def fetch(url: URL) -> "EntityStatementPlus":
-        return EntityStatementPlus(get_self_signed_entity_configuration(url))
 
 
 class APIRouter(FastAPIRouter):

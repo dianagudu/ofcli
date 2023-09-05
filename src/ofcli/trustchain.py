@@ -8,6 +8,7 @@ from ofcli.exceptions import InternalException
 from ofcli.utils import (
     URL,
     EntityStatementPlus,
+    add_edge_to_graph,
     fetch_entity_statement,
     add_node_to_graph,
     print_json,
@@ -41,7 +42,8 @@ class TrustChain:
                 self._chain, entity_type
             )
             self._metadata[entity_type] = apply_policy(
-                self._chain[0].get("metadata", {})[entity_type], self._combined_policy
+                self._chain[0].get("metadata", {})[entity_type],
+                self._combined_policy[entity_type],
             )
             logger.debug(
                 f"Combined policy for {entity_type}: {self._combined_policy[entity_type]}"
@@ -54,9 +56,9 @@ class TrustChain:
         """Prints the entity IDs in the chain. The last one is the trust anchor."""
         return (
             " -> ".join([link.get("iss") or "" for link in self._chain[:-1]])
-            + " (expiring at "
-            + datetime.datetime.fromtimestamp(self._exp).isoformat()
-            + ")"
+            # + " (expiring at "
+            # + datetime.datetime.fromtimestamp(self._exp).isoformat()
+            # + ")"
         )
 
     def to_json(self) -> dict:
@@ -65,7 +67,7 @@ class TrustChain:
                 {
                     "iss": link.get("iss"),
                     "sub": link.get("sub"),
-                    "entity_statement": link.jwt,
+                    "entity_statement": link.get_jwt(),
                 }
                 for link in self._chain
             ],
@@ -76,7 +78,7 @@ class TrustChain:
         # return last link in chain
         if len(self._chain) == 0:
             raise InternalException("Malformed chain. No trust anchor found.")
-        return URL(self._chain[-1].entity_id)
+        return URL(self._chain[-1].get("sub", ""))
 
     def get_metadata(self, entity_type: str) -> dict:
         md = self._metadata.get(entity_type)
@@ -204,9 +206,7 @@ class TrustChainResolver:
     def _to_graph(self, trust_tree: TrustTree, graph: pygraphviz.AGraph) -> None:
         add_node_to_graph(graph, trust_tree.entity, len(trust_tree.authorities) == 0)
         if trust_tree.subordinate:
-            graph.add_edge(
-                trust_tree.entity.get("sub"), trust_tree.subordinate.get("sub")
-            )
+            add_edge_to_graph(graph, trust_tree.entity, trust_tree.subordinate)
         for authority in trust_tree.authorities:
             self._to_graph(authority, graph)
 
