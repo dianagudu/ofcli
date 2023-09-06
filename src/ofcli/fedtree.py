@@ -29,11 +29,16 @@ class FedTree:
         try:
             subordinates = get_subordinates(self.entity)
             for sub in subordinates:
-                subordinate = FedTree(get_self_signed_entity_configuration(URL(sub)))
-                subordinate.discover()
-                # logger.debug(f"Adding subordinate {subordinate.entity.get('sub')}")
-                # logger.debug(f"{subordinate.entity}")
-                self.subordinates.append(subordinate)
+                try:
+                    subordinate = FedTree(
+                        get_self_signed_entity_configuration(URL(sub))
+                    )
+                    subordinate.discover()
+                    # logger.debug(f"Adding subordinate {subordinate.entity.get('sub')}")
+                    # logger.debug(f"{subordinate.entity}")
+                    self.subordinates.append(subordinate)
+                except Exception as e:
+                    logger.warning(f"Could not fetch subordinate {sub}: {e}")
         except Exception as e:
             logger.debug("Could not fetch subordinates, likely a leaf entity: %s" % e)
 
