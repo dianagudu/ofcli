@@ -19,6 +19,28 @@ The recommended way to install `ofcli` is with `pip`:
 pip install ofcli
 ```
 
+If the setup process exits with the following error messages:
+
+````
+      pygraphviz/graphviz_wrap.c:3020:10: fatal error: graphviz/cgraph.h: File o directory non esistente
+       3020 | #include "graphviz/cgraph.h"
+            |          ^~~~~~~~~~~~~~~~~~~
+      compilation terminated.
+      error: command '/usr/bin/x86_64-linux-gnu-gcc' failed with exit code 1
+      [end of output]
+  
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+  ERROR: Failed building wheel for pygraphviz
+
+````
+
+Please install the graphviz development files, such as for debian/ubuntu using the following command:
+
+````
+sudo apt install libgraphviz-dev
+````
+
+
 This will ensure that the stable version is fetched from pip, rather than the development version.
 
 ## Usage
