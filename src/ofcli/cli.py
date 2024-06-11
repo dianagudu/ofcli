@@ -1,6 +1,7 @@
 """Executable for running ofcli cli tool.
 """
 
+from typing import Optional
 import click
 import click_logging
 from functools import wraps
@@ -233,9 +234,9 @@ def metadata(entity_id: str, verify: bool = False, **kwargs):
     required=False,
     default=None,
     # add .dot extension if not present
-    callback=lambda ctx, param, value: value
-    if not value or value.endswith(".dot")
-    else value + ".dot",
+    callback=lambda ctx, param, value: (
+        value if not value or value.endswith(".dot") else value + ".dot"
+    ),
 )
 @click.option(
     "--details",
@@ -245,7 +246,7 @@ def metadata(entity_id: str, verify: bool = False, **kwargs):
 )
 @common_options
 def trustchains(
-    entity_id: str, ta: tuple[str], export: str | None, details: bool, **kwargs
+    entity_id: str, ta: tuple[str], export: Optional[str], details: bool, **kwargs
 ):
     """
     Build trustchain for a given entity and print it to stdout.
@@ -296,9 +297,9 @@ def fetch(entity_id: str, issuer: str, **kwargs):
 @common_options
 def federation_list(
     entity_id: str,
-    entity_type: str | None,
+    entity_type: Optional[str],
     trust_marked: bool,
-    trust_mark_id: str | None,
+    trust_mark_id: Optional[str],
     **kwargs,
 ):
     """Lists all subordinates of a federation entity."""
@@ -376,9 +377,9 @@ def resolve(entity_id: str, ta: str, entity_type: str, **kwargs):
     required=False,
     default=None,
     # add .dot extension if not present
-    callback=lambda ctx, param, value: value
-    if not value or value.endswith(".dot")
-    else value + ".dot",
+    callback=lambda ctx, param, value: (
+        value if not value or value.endswith(".dot") else value + ".dot"
+    ),
 )
 @click.option(
     "--details",
@@ -387,7 +388,7 @@ def resolve(entity_id: str, ta: str, entity_type: str, **kwargs):
     default=False,
 )
 @common_options
-def get_subtree(entity_id: str, export: str | None, details: bool, **kwargs):
+def get_subtree(entity_id: str, export: Optional[str], details: bool, **kwargs):
     """Discover all entities in the federation given by the root entity id and build tree."""
     # print_json(subtree(entity_id, export))
     tree, graph = subtree(entity_id, export is not None)

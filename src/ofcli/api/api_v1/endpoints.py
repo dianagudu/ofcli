@@ -1,7 +1,15 @@
 from fastapi import Request
 from fastapi.params import Query, Path
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
-from typing import Annotated, Optional
+
+# for python 3.8, import Annotated from typing_extensions
+import sys
+
+if sys.version_info >= (3, 9):
+    from typing import Annotated
+else:
+    from typing_extensions import Annotated
+from typing import Optional, List, Dict
 from pydantic import HttpUrl
 
 from ofcli import __version__
@@ -20,7 +28,7 @@ router = APIRouter()
 
 
 @router.get(path="/", name="index", description="Retrieve general API information.")
-async def index(request: Request) -> list[dict[str, str]]:
+async def index(request: Request) -> List[Dict[str, str]]:
     def get_route_info(route):
         info = {
             "path": route.path,
@@ -123,7 +131,7 @@ async def trustchains(
         ),
     ],
     ta: Annotated[
-        list[HttpUrl],
+        List[HttpUrl],
         Query(
             description="Trust anchor ID to use for building trustchains (multiple TAs possible)."
         ),
@@ -210,7 +218,7 @@ async def discovery(
         ),
     ],
     ta: Annotated[
-        list[HttpUrl],
+        List[HttpUrl],
         Query(
             description="Trust anchor ID to use for OP discovery (multiple TAs possible)."
         ),

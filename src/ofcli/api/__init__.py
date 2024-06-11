@@ -18,8 +18,6 @@ from ofcli.api.config import settings
 
 
 def create_app():
-    app = FastAPI()
-
     app = FastAPI(
         title=settings.title,
         description=settings.description,

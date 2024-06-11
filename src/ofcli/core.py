@@ -1,6 +1,8 @@
 """
 API for OIDC Federation exploration.
 """
+
+from typing import Optional, List, Tuple
 import pygraphviz
 from ofcli import utils, trustchain, fedtree
 from ofcli.utils import URL
@@ -55,8 +57,8 @@ def get_entity_jwks(entity_id: str) -> dict:
 
 
 def get_trustchains(
-    entity_id: str, trust_anchors: list[str] = [], export_graph: bool = False
-) -> tuple[list[trustchain.TrustChain], pygraphviz.AGraph | None]:
+    entity_id: str, trust_anchors: List[str] = [], export_graph: bool = False
+) -> Tuple[List[trustchain.TrustChain], Optional[pygraphviz.AGraph]]:
     """Builds all trustchains for a given entity ID.
 
     :param entity_id: The entity ID to build the trustchains for (URL).
@@ -80,17 +82,17 @@ def fetch_entity_statement(entity_id: str, issuer: str) -> dict:
 
 def list_subordinates(
     entity_id: str,
-    entity_type: str | None = None,
+    entity_type: Optional[str] = None,
     trust_marked: bool = False,
-    trust_mark_id: str | None = None,
-) -> list[str]:
+    trust_mark_id: Optional[str] = None,
+) -> List[str]:
     entity = EntityStatement(
         **utils.get_payload(utils.get_self_signed_entity_configuration(URL(entity_id)))
     )
     return utils.get_subordinates(entity, entity_type, trust_marked, trust_mark_id)
 
 
-def discover(entity_id: str, tas: list[str] = []) -> list[str]:
+def discover(entity_id: str, tas: List[str] = []) -> List[str]:
     """Discovers all OPs available in the federation to a given RP.
 
     :param entity_id: The entity ID to discover the OPs for (URL).
@@ -120,7 +122,7 @@ def discover(entity_id: str, tas: list[str] = []) -> list[str]:
 
 def subtree(
     entity_id: str, export_graph: bool = False
-) -> tuple[dict, pygraphviz.AGraph | None]:
+) -> Tuple[dict, Optional[pygraphviz.AGraph]]:
     """Builds the entire federation subtree for given entity_id as root.
 
     :param entity_id: The entity ID to use as root for the subtree (URL)

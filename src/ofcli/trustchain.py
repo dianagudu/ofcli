@@ -2,6 +2,7 @@ import datetime
 from functools import reduce
 import pygraphviz
 import click
+from typing import Optional, List, Dict
 
 from ofcli.message import Metadata
 from ofcli.exceptions import InternalException
@@ -18,12 +19,12 @@ from ofcli.policy import gather_policies, apply_policy
 
 
 class TrustChain:
-    _chain: list[EntityStatementPlus]
+    _chain: List[EntityStatementPlus]
     _exp: int
-    _combined_policy: dict[str, dict]
-    _metadata: dict[str, dict]
+    _combined_policy: Dict[str, dict]
+    _metadata: Dict[str, dict]
 
-    def __init__(self, chain: list[EntityStatementPlus]) -> None:
+    def __init__(self, chain: List[EntityStatementPlus]) -> None:
         self._chain = chain
         # calculate expiration as the minimum of all entities' expirations
         self._exp = reduce(
@@ -92,23 +93,23 @@ class TrustChain:
 
 class TrustTree:
     entity: EntityStatementPlus
-    subordinate: EntityStatementPlus | None
-    authorities: list["TrustTree"]
+    subordinate: Optional[EntityStatementPlus]
+    authorities: List["TrustTree"]
 
     def __init__(
-        self, entity: EntityStatementPlus, subordinate: EntityStatementPlus | None
+        self, entity: EntityStatementPlus, subordinate: Optional[EntityStatementPlus]
     ) -> None:
         self.entity = entity
         self.subordinate = subordinate
         self.authorities = []
 
-    def resolve(self, anchors: list[URL], seen: list[URL] = []) -> bool:
+    def resolve(self, anchors: List[URL], seen: List[URL] = []) -> bool:
         """Recursively resolve the trust tree.
         If no trust anchor is found, build the trust tree for all anchors.
 
         Args:
-            anchors (list[URL]): List of trust anchors.
-            seen (list[URL], optional): List of already seen entities (to avoid loops). Defaults to [].
+            anchors (List[URL]): List of trust anchors.
+            seen (List[URL], optional): List of already seen entities (to avoid loops). Defaults to [].
 
         Returns:
             bool: True if the trust tree is valid, False otherwise.
@@ -155,15 +156,15 @@ class TrustTree:
                 self.authorities.append(tt)
         return valid
 
-    def verify_signatures(self, anchors: list[URL]) -> bool:
+    def verify_signatures(self, anchors: List[URL]) -> bool:
         # TODO: verify signatures
         return True
 
-    def chains(self) -> list[list[EntityStatementPlus]]:
+    def chains(self) -> List[List[EntityStatementPlus]]:
         """Serializes trust chains from trust tree.
 
         Returns:
-            list[list[EntityStatementPlus]]: List of trust chains.
+            List[List[EntityStatementPlus]]: List of trust chains.
         """
         if len(self.authorities) == 0:
             if self.subordinate is None:
@@ -182,10 +183,10 @@ class TrustTree:
 
 class TrustChainResolver:
     starting_entity: URL
-    trust_anchors: list[URL]
-    trust_tree: TrustTree | None = None
+    trust_anchors: List[URL]
+    trust_tree: Optional[TrustTree] = None
 
-    def __init__(self, starting_entity: URL, trust_anchors: list[URL]) -> None:
+    def __init__(self, starting_entity: URL, trust_anchors: List[URL]) -> None:
         self.starting_entity = starting_entity
         self.trust_anchors = trust_anchors
 
@@ -194,7 +195,7 @@ class TrustChainResolver:
         self.trust_tree = TrustTree(starting, None)
         self.trust_tree.resolve(self.trust_anchors)
 
-    def to_graph(self) -> pygraphviz.AGraph | None:
+    def to_graph(self) -> Optional[pygraphviz.AGraph]:
         if self.trust_tree:
             graph = pygraphviz.AGraph(
                 name=f"Trustchains: {self.starting_entity}", directed=True
@@ -210,7 +211,7 @@ class TrustChainResolver:
         for authority in trust_tree.authorities:
             self._to_graph(authority, graph)
 
-    def chains(self) -> list[TrustChain]:
+    def chains(self) -> List[TrustChain]:
         if self.trust_tree:
             chains = self.trust_tree.chains()
             logger.debug(f"Found {len(chains)} trust chains.")
@@ -225,7 +226,7 @@ class TrustChainResolver:
         return False
 
 
-def print_trustchains(chains: list[TrustChain], details: bool):
+def print_trustchains(chains: List[TrustChain], details: bool):
     if len(chains) == 0:
         logger.warn("No trust chains found.")
         return

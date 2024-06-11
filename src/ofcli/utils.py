@@ -205,8 +205,10 @@ def fetch_jws_from_url(url: URL) -> str:
             "Could not fetch entity statement from %s. Status code: %s"
             % (url, response.status_code)
         )
-    raise InternalException(str(last_exception)) if last_exception else Exception(
-        "Could not fetch entity statement from %s." % url
+    raise (
+        InternalException(str(last_exception))
+        if last_exception
+        else Exception("Could not fetch entity statement from %s." % url)
     )
 
 
@@ -271,10 +273,10 @@ def fetch_entity_statement(entity_id: URL, issuer: URL) -> str:
 
 def get_subordinates(
     entity: EntityStatement,
-    entity_type: str | None = None,
+    entity_type: t.Optional[str] = None,
     trust_marked: bool = False,
-    trust_mark_id: str | None = None,
-) -> list[str]:
+    trust_mark_id: t.Optional[str] = None,
+) -> t.List[str]:
     metadata = entity.get("metadata")
     if not metadata:
         raise InternalException("No metadata found in entity configuration.")
@@ -309,7 +311,7 @@ def get_subordinates(
     return list(subs)
 
 
-def print_json(data: dict | list):
+def print_json(data: t.Union[dict, list]):
     json.dump(data, click.get_text_stream("stdout"), indent=2)
 
 

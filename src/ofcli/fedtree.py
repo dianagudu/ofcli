@@ -1,5 +1,6 @@
 import pygraphviz
 
+from typing import List
 from ofcli.logging import logger
 from ofcli.exceptions import InternalException
 from ofcli.utils import (
@@ -15,7 +16,7 @@ from ofcli.utils import (
 
 class FedTree:
     entity: EntityStatementPlus
-    subordinates: list["FedTree"]
+    subordinates: List["FedTree"]
 
     def __init__(self, jwt: str) -> None:
         self.entity = EntityStatementPlus(jwt)
@@ -54,7 +55,7 @@ class FedTree:
             subtree.update({"subordinates": subordinates})  # type: ignore
         return {self.entity.get("sub"): subtree}
 
-    def get_entities(self, entity_type: str) -> list[str]:
+    def get_entities(self, entity_type: str) -> List[str]:
         entities = []
         md = self.entity.get("metadata")
         if md and md.get(entity_type):
@@ -84,7 +85,7 @@ class FedTree:
         return graph
 
 
-def discover_ops(trust_anchors: list[URL]) -> list[str]:
+def discover_ops(trust_anchors: List[URL]) -> List[str]:
     """Discovers all OPs in the federations of the given trust anchors.
 
     :param trust_anchors: The trust anchors to use.

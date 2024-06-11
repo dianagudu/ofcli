@@ -7,3 +7,4 @@ fastapi
 uvicorn[standard]
 oidcmsg
 pydantic_settings
+typing_extensions
