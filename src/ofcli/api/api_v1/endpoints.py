@@ -11,6 +11,7 @@ else:
     from typing_extensions import Annotated
 from typing import Optional, List, Dict
 from pydantic import HttpUrl
+import aiohttp
 
 from ofcli import __version__
 from ofcli import core
@@ -65,8 +66,10 @@ async def entity(
         Query(description="Whether to verify the entity configuration's signature"),
     ] = False,
 ):
-    configuration = core.get_entity_configuration(
-        entity_id.unicode_string(), verify=verify
+    configuration = await core.get_entity_configuration(
+        entity_id=entity_id.unicode_string(),
+        verify=verify,
+        http_session=aiohttp.ClientSession(),
     )
     return configuration
 
@@ -86,8 +89,10 @@ async def fetch(
         ),
     ],
 ):
-    statement = core.fetch_entity_statement(
-        entity_id.unicode_string(), issuer.unicode_string()
+    statement = await core.fetch_entity_statement(
+        entity_id=entity_id.unicode_string(),
+        issuer=issuer.unicode_string(),
+        http_session=aiohttp.ClientSession(),
     )
     return statement
 
@@ -111,9 +116,10 @@ async def list_subordinates(
         ),
     ] = None,
 ):
-    subordinates = core.list_subordinates(
-        entity_id.unicode_string(),
+    subordinates = await core.list_subordinates(
+        entity_id=entity_id.unicode_string(),
         entity_type=entity_type.value if entity_type else None,
+        http_session=aiohttp.ClientSession(),
     )
     return subordinates
 
@@ -138,10 +144,11 @@ async def trustchains(
     ] = [],
     format: OutputType = OutputType.json,
 ):
-    chains, graph = core.get_trustchains(
-        entity_id.unicode_string(),
-        [ta_item.unicode_string() for ta_item in ta],
-        format == OutputType.dot,
+    chains, graph = await core.get_trustchains(
+        entity_id=entity_id.unicode_string(),
+        trust_anchors=[ta_item.unicode_string() for ta_item in ta],
+        export_graph=format == OutputType.dot,
+        http_session=aiohttp.ClientSession(),
     )
     if format == OutputType.dot:
         if not graph:
@@ -173,7 +180,11 @@ async def subtree(
     ],
     format: OutputType = OutputType.json,
 ):
-    tree, graph = core.subtree(entity_id.unicode_string(), format == OutputType.dot)
+    tree, graph = await core.subtree(
+        entity_id=entity_id.unicode_string(),
+        export_graph=format == OutputType.dot,
+        http_session=aiohttp.ClientSession(),
+    )
     if format == OutputType.dot:
         if not graph:
             raise InternalException("No graph to export.")
@@ -199,8 +210,11 @@ async def resolve(
     ta: Annotated[HttpUrl, Query(description="Trust anchor ID to use for resolving.")],
     entity_type: Annotated[EntityType, Query()],
 ):
-    metadata = core.resolve_entity(
-        entity_id.unicode_string(), ta.unicode_string(), entity_type.value
+    metadata = await core.resolve_entity(
+        entity_id=entity_id.unicode_string(),
+        ta=ta.unicode_string(),
+        entity_type=entity_type.value,
+        http_session=aiohttp.ClientSession(),
     )
     return metadata
 
@@ -224,7 +238,9 @@ async def discovery(
         ),
     ] = [],
 ):
-    ops = core.discover(
-        entity_id.unicode_string(), [ta_item.unicode_string() for ta_item in ta]
+    ops = await core.discover(
+        entity_id=entity_id.unicode_string(),
+        tas=[ta_item.unicode_string() for ta_item in ta],
+        http_session=aiohttp.ClientSession(),
     )
     return ops
