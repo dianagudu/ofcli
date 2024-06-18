@@ -3,6 +3,7 @@ from functools import reduce
 import pygraphviz
 import click
 from typing import Optional, List, Dict
+import aiohttp
 
 from ofcli.message import Metadata
 from ofcli.exceptions import InternalException
@@ -103,7 +104,12 @@ class TrustTree:
         self.subordinate = subordinate
         self.authorities = []
 
-    def resolve(self, anchors: List[URL], seen: List[URL] = []) -> bool:
+    async def resolve(
+        self,
+        http_session: aiohttp.ClientSession,
+        anchors: List[URL],
+        seen: List[URL] = [],
+    ) -> bool:
         """Recursively resolve the trust tree.
         If no trust anchor is found, build the trust tree for all anchors.
 
@@ -138,20 +144,24 @@ class TrustTree:
         for authority in self.entity.get("authority_hints", []):
             logger.debug(f"Fetching self signed entity statement for {authority}")
             authority = URL(authority)
-            authority_statement = EntityStatementPlus.fetch(authority)
+            authority_statement = await EntityStatementPlus.fetch(
+                url=authority, http_session=http_session
+            )
             logger.debug(f"Fetching entity statement for {sub} from {authority}")
             try:
                 subordinate_statement = EntityStatementPlus(
-                    fetch_entity_statement(sub, authority)
+                    await fetch_entity_statement(
+                        entity_id=sub, issuer=authority, http_session=http_session
+                    )
                 )
             except Exception as e:
                 logger.debug(e)
                 return False
             tt = TrustTree(
-                authority_statement,
-                subordinate_statement,
+                entity=authority_statement,
+                subordinate=subordinate_statement,
             )
-            if tt.resolve(anchors, seen):
+            if await tt.resolve(http_session=http_session, anchors=anchors, seen=seen):
                 valid = True
                 self.authorities.append(tt)
         return valid
@@ -185,15 +195,26 @@ class TrustChainResolver:
     starting_entity: URL
     trust_anchors: List[URL]
     trust_tree: Optional[TrustTree] = None
+    http_session: aiohttp.ClientSession
 
-    def __init__(self, starting_entity: URL, trust_anchors: List[URL]) -> None:
+    def __init__(
+        self,
+        starting_entity: URL,
+        trust_anchors: List[URL],
+        http_session: aiohttp.ClientSession,
+    ) -> None:
         self.starting_entity = starting_entity
         self.trust_anchors = trust_anchors
+        self.http_session = http_session
 
-    def resolve(self) -> None:
-        starting = EntityStatementPlus.fetch(self.starting_entity)
+    async def resolve(self) -> None:
+        starting = await EntityStatementPlus.fetch(
+            self.starting_entity, http_session=self.http_session
+        )
         self.trust_tree = TrustTree(starting, None)
-        self.trust_tree.resolve(self.trust_anchors)
+        await self.trust_tree.resolve(
+            anchors=self.trust_anchors, http_session=self.http_session
+        )
 
     def to_graph(self) -> Optional[pygraphviz.AGraph]:
         if self.trust_tree:

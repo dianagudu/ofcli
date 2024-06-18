@@ -2,10 +2,12 @@
 """
 
 from typing import Optional
+import aiohttp
 import click
 import click_logging
 from functools import wraps
 import logging
+import asyncio
 
 from ofcli.core import (
     get_entity_configuration,
@@ -153,6 +155,14 @@ def common_options(f):
     return wrapper
 
 
+def coro(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        return asyncio.run(f(*args, **kwargs))
+
+    return wrapper
+
+
 @click.group(help="Tool for exploring an OIDC federation.")
 @common_options
 def cli(**kwargs):
@@ -179,21 +189,29 @@ def entity(**kwargs):
 )
 @click.argument("entity_id")
 @common_options
-def configuration(entity_id: str, verify: bool, **kwargs):
+@coro
+async def configuration(entity_id: str, verify: bool, **kwargs):
     """
     Fetches an entity configuration and prints it to stdout.
     """
-    print_json(get_entity_configuration(entity_id, verify=verify))
+    print_json(
+        await get_entity_configuration(
+            entity_id=entity_id, verify=verify, http_session=aiohttp.ClientSession()
+        )
+    )
 
 
 @entity.command("jwks", short_help="Prints the JWKS for given entity_id.")
 @click.argument("entity_id")
 @common_options
-def jwks(entity_id: str, **kwargs):
+@coro
+async def jwks(entity_id: str, **kwargs):
     """
     Fetches an entity configuration and prints the JWKS to stdout.
     """
-    print_json(get_entity_jwks(entity_id))
+    print_json(
+        await get_entity_jwks(entity_id=entity_id, http_session=aiohttp.ClientSession())
+    )
 
 
 @entity.command("metadata", short_help="Prints the metadata for given entity_id.")
@@ -206,11 +224,16 @@ def jwks(entity_id: str, **kwargs):
 )
 @click.argument("entity_id")
 @common_options
-def metadata(entity_id: str, verify: bool = False, **kwargs):
+@coro
+async def metadata(entity_id: str, verify: bool = False, **kwargs):
     """
     Fetches an entity configuration and prints the metadata to stdout.
     """
-    print_json(get_entity_metadata(entity_id, verify=verify))
+    print_json(
+        await get_entity_metadata(
+            entity_id=entity_id, verify=verify, http_session=aiohttp.ClientSession()
+        )
+    )
 
 
 @cli.command(
@@ -245,14 +268,20 @@ def metadata(entity_id: str, verify: bool = False, **kwargs):
     default=False,
 )
 @common_options
-def trustchains(
+@coro
+async def trustchains(
     entity_id: str, ta: tuple[str], export: Optional[str], details: bool, **kwargs
 ):
     """
     Build trustchain for a given entity and print it to stdout.
     """
-    chains, graph = get_trustchains(entity_id, list(ta), export is not None)
-    print_trustchains(chains, details)
+    chains, graph = await get_trustchains(
+        entity_id=entity_id,
+        trust_anchors=list(ta),
+        export_graph=export is not None,
+        http_session=aiohttp.ClientSession(),
+    )
+    print_trustchains(chains=chains, details=details)
     if export:
         if not graph:
             raise InternalException("No graph to export.")
@@ -266,11 +295,16 @@ def trustchains(
 @click.argument("entity_id", metavar="ENTITY_ID")
 @click.argument("issuer", metavar="ISSUER")
 @common_options
-def fetch(entity_id: str, issuer: str, **kwargs):
+@coro
+async def fetch(entity_id: str, issuer: str, **kwargs):
     """
     Fetch an entity statement for ENTITY_ID from ISSUER and print it to stdout.
     """
-    print_json(fetch_entity_statement(entity_id, issuer))
+    print_json(
+        await fetch_entity_statement(
+            entity_id=entity_id, issuer=issuer, http_session=aiohttp.ClientSession()
+        )
+    )
 
 
 @cli.command("list", short_help="List all subordinate entities.")
@@ -295,7 +329,8 @@ def fetch(entity_id: str, issuer: str, **kwargs):
     "--trust-mark-id", metavar="ID", default=None, help="Filter by trust mark."
 )
 @common_options
-def federation_list(
+@coro
+async def federation_list(
     entity_id: str,
     entity_type: Optional[str],
     trust_marked: bool,
@@ -304,7 +339,8 @@ def federation_list(
 ):
     """Lists all subordinates of a federation entity."""
     print_json(
-        list_subordinates(
+        await list_subordinates(
+            http_session=aiohttp.ClientSession(),
             entity_id=entity_id,
             entity_type=entity_type,
             trust_marked=trust_marked,
@@ -328,9 +364,14 @@ def federation_list(
     multiple=True,
 )
 @common_options
-def discovery(entity_id: str, ta: tuple[str], **kwargs):
+@coro
+async def discovery(entity_id: str, ta: tuple[str], **kwargs):
     """Discover all OPs in the federation available to a given RP."""
-    print_json(discover(entity_id, list(ta)))
+    print_json(
+        await discover(
+            entity_id=entity_id, tas=list(ta), http_session=aiohttp.ClientSession()
+        )
+    )
 
 
 @cli.command(
@@ -359,9 +400,15 @@ def discovery(entity_id: str, ta: tuple[str], **kwargs):
     ),
 )
 @common_options
-def resolve(entity_id: str, ta: str, entity_type: str, **kwargs):
+@coro
+async def resolve(entity_id: str, ta: str, entity_type: str, **kwargs):
     """Resolve metadata and Trust Marks for an entity, given a trust anchor."""
-    metadata = resolve_entity(entity_id, ta, entity_type)
+    metadata = await resolve_entity(
+        entity_id=entity_id,
+        ta=ta,
+        entity_type=entity_type,
+        http_session=aiohttp.ClientSession(),
+    )
     logger.debug("Resolved metadata: %s", metadata)
     print_json(metadata)
 
@@ -388,10 +435,15 @@ def resolve(entity_id: str, ta: str, entity_type: str, **kwargs):
     default=False,
 )
 @common_options
-def get_subtree(entity_id: str, export: Optional[str], details: bool, **kwargs):
+@coro
+async def get_subtree(entity_id: str, export: Optional[str], details: bool, **kwargs):
     """Discover all entities in the federation given by the root entity id and build tree."""
     # print_json(subtree(entity_id, export))
-    tree, graph = subtree(entity_id, export is not None)
+    tree, graph = await subtree(
+        http_session=aiohttp.ClientSession(),
+        entity_id=entity_id,
+        export_graph=export is not None,
+    )
     print_subtree(tree, details)
     if export:
         if not graph:

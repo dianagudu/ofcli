@@ -8,3 +8,4 @@ uvicorn[standard]
 oidcmsg
 pydantic_settings
 typing_extensions
+aiohttp[speedups]

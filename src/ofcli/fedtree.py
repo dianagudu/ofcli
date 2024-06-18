@@ -1,6 +1,7 @@
 import pygraphviz
-
+import aiohttp
 from typing import List
+
 from ofcli.logging import logger
 from ofcli.exceptions import InternalException
 from ofcli.utils import (
@@ -23,18 +24,20 @@ class FedTree:
         logger.debug(f"Created tree node for {self.entity.get('sub')}")
         self.subordinates = []
 
-    def discover(self) -> None:
+    async def discover(self, http_session: aiohttp.ClientSession) -> None:
         # probably should also verify things here
         if not self.entity.get("metadata"):
             raise InternalException("No metadata found in entity configuration.")
         try:
-            subordinates = get_subordinates(self.entity)
+            subordinates = await get_subordinates(http_session, self.entity)
             for sub in subordinates:
                 try:
                     subordinate = FedTree(
-                        get_self_signed_entity_configuration(URL(sub))
+                        await get_self_signed_entity_configuration(
+                            entity_id=URL(sub), http_session=http_session
+                        )
                     )
-                    subordinate.discover()
+                    await subordinate.discover(http_session)
                     # logger.debug(f"Adding subordinate {subordinate.entity.get('sub')}")
                     # logger.debug(f"{subordinate.entity}")
                     self.subordinates.append(subordinate)
@@ -85,7 +88,9 @@ class FedTree:
         return graph
 
 
-def discover_ops(trust_anchors: List[URL]) -> List[str]:
+async def discover_ops(
+    trust_anchors: List[URL], http_session: aiohttp.ClientSession
+) -> List[str]:
     """Discovers all OPs in the federations of the given trust anchors.
 
     :param trust_anchors: The trust anchors to use.
@@ -93,8 +98,12 @@ def discover_ops(trust_anchors: List[URL]) -> List[str]:
     """
     ops = []
     for ta in trust_anchors:
-        subtree = FedTree(get_self_signed_entity_configuration(ta))
-        subtree.discover()
+        subtree = FedTree(
+            await get_self_signed_entity_configuration(
+                entity_id=ta, http_session=http_session
+            )
+        )
+        await subtree.discover(http_session)
         ops += subtree.get_entities("openid_provider")
     # TODO: return OPs as EntityStatements, including the corresponding TA, and apply metadata policies
     return ops

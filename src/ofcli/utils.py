@@ -12,6 +12,7 @@ import requests
 from cryptojwt.jws.jws import factory
 import enum
 
+import aiohttp
 from fastapi.types import DecoratedCallable
 from fastapi import APIRouter as FastAPIRouter
 
@@ -118,8 +119,12 @@ class EntityStatementPlus(EntityStatement):
         return self._jwt
 
     @staticmethod
-    def fetch(url: URL) -> "EntityStatementPlus":
-        return EntityStatementPlus(get_self_signed_entity_configuration(url))
+    async def fetch(
+        url: URL, http_session: aiohttp.ClientSession
+    ) -> "EntityStatementPlus":
+        return EntityStatementPlus(
+            await get_self_signed_entity_configuration(url, http_session)
+        )
 
 
 def set_verify_ssl(ctx, param, value):
@@ -182,7 +187,7 @@ def well_known_url(entity_id: URL) -> URL:
     return URL(urllib.parse.urlunparse(url_parts))
 
 
-def fetch_jws_from_url(url: URL) -> str:
+async def fetch_jws_from_url(url: URL, http_session: aiohttp.ClientSession) -> str:
     """Fetches a JWS from a given URL.
 
     :param url: The url to fetch the entity configuration from.
@@ -190,11 +195,17 @@ def fetch_jws_from_url(url: URL) -> str:
     """
     response = None
     last_exception = None
+    last_status_code = None
     for tried_url in [url.remove_trailing_slashes(), str(url)]:
         try:
-            response = requests.request("GET", tried_url, verify=VERIFY_SSL)
-            if response.status_code == 200:
-                return response.text
+            async with http_session.get(tried_url) as resp:
+                response = await resp.text()
+                last_status_code = resp.status
+                if last_status_code == 200:
+                    return response
+            # response = requests.request("GET", tried_url, verify=VERIFY_SSL)
+            # if response.status_code == 200:
+            #     return response.text
         except Exception as e:
             logger.debug(e)
             last_exception = e
@@ -203,7 +214,7 @@ def fetch_jws_from_url(url: URL) -> str:
     if response is not None:
         raise InternalException(
             "Could not fetch entity statement from %s. Status code: %s"
-            % (url, response.status_code)
+            % (url, last_status_code)
         )
     raise (
         InternalException(str(last_exception))
@@ -233,19 +244,23 @@ def get_payload(jws_str: str) -> dict:
     return payload
 
 
-def get_self_signed_entity_configuration(entity_id: URL) -> str:
+async def get_self_signed_entity_configuration(
+    entity_id: URL, http_session: aiohttp.ClientSession
+) -> str:
     """Fetches the self-signed entity configuration of a given entity ID.
 
     :param entity_id: The entity ID to fetch the entity configuration from (URL).
     :return: The entity configuration as a JWT.
     """
-    return fetch_jws_from_url(well_known_url(entity_id))
+    return await fetch_jws_from_url(well_known_url(entity_id), http_session)
 
 
-def fetch_entity_statement(entity_id: URL, issuer: URL) -> str:
-    issuer_metadata = get_payload(get_self_signed_entity_configuration(issuer)).get(
-        "metadata"
-    )
+async def fetch_entity_statement(
+    entity_id: URL, issuer: URL, http_session: aiohttp.ClientSession
+) -> str:
+    issuer_metadata = get_payload(
+        await get_self_signed_entity_configuration(issuer, http_session)
+    ).get("metadata")
     if not issuer_metadata:
         raise InternalException("No metadata found in entity configuration.")
     try:
@@ -262,8 +277,8 @@ def fetch_entity_statement(entity_id: URL, issuer: URL) -> str:
     last_exception = None
     for entity_id_url in [entity_id.remove_trailing_slashes(), str(entity_id)]:
         try:
-            return fetch_jws_from_url(
-                fetch_url.add_query_params({"sub": entity_id_url})
+            return await fetch_jws_from_url(
+                fetch_url.add_query_params({"sub": entity_id_url}), http_session
             )
         except Exception as e:
             last_exception = e
@@ -271,7 +286,8 @@ def fetch_entity_statement(entity_id: URL, issuer: URL) -> str:
     raise last_exception if last_exception else Exception("Unknown error")
 
 
-def get_subordinates(
+async def get_subordinates(
+    http_session: aiohttp.ClientSession,
     entity: EntityStatement,
     entity_type: t.Optional[str] = None,
     trust_marked: bool = False,
@@ -298,17 +314,17 @@ def get_subordinates(
         params["trust_mark_id"] = trust_mark_id
 
     url = list_url.add_query_params(params)
-    response = requests.request("GET", str(url), verify=VERIFY_SSL)
-
-    if response.status_code != 200:
-        raise InternalException(
-            "Could not fetch subordinates from %s. Status code: %s"
-            % (url, response.status_code)
-        )
-    subs = json.loads(response.text)
-    if not subs:
-        return []
-    return list(subs)
+    # response = requests.request("GET", str(url), verify=VERIFY_SSL)
+    async with http_session.get(str(url)) as resp:
+        subs = await resp.json()
+        if resp.status != 200:
+            raise InternalException(
+                "Could not fetch subordinates from %s. Status code: %s"
+                % (url, resp.status)
+            )
+        if not subs:
+            return []
+        return list(subs)
 
 
 def print_json(data: t.Union[dict, list]):
