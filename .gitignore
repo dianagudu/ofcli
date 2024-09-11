@@ -5,3 +5,4 @@ dist
 *.egg-info
 .coverage
 coverage.*
+env
