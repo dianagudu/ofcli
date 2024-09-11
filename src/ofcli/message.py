@@ -1,5 +1,6 @@
 """ Classes and functions used to describe information in an OpenID Connect Federation.
 """
+
 __author__ = "Roland Hedberg"
 __license__ = "Apache 2.0"
 __version__ = ""

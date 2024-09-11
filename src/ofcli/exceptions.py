@@ -1,4 +1,5 @@
 """exceptions definitions"""
+
 from pydantic import ValidationError
 from fastapi import Request
 from fastapi.exceptions import HTTPException, RequestValidationError
