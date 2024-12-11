@@ -37,8 +37,10 @@ class FedTree:
                             entity_id=URL(sub), http_session=http_session
                         )
                     )
-                    if subordinate.entity.get('sub') == self.entity.get('sub'):
-                        raise InternalException(f"Entity is listed as its own subordinate.")
+                    if subordinate.entity.get("sub") == self.entity.get("sub"):
+                        raise InternalException(
+                            f"Entity is listed as its own subordinate."
+                        )
                     await subordinate.discover(http_session)
                     # logger.debug(f"Adding subordinate {subordinate.entity.get('sub')}")
                     # logger.debug(f"{subordinate.entity}")
