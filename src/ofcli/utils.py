@@ -77,7 +77,11 @@ class URL:
             return self._url == other.url()
         if isinstance(other, str):
             return self._url == HttpUrl(other)
-        if isinstance(other, pydantic_core._pydantic_core.Url):
+        if (
+            isinstance(other, pydantic_core._pydantic_core.Url)
+            or isinstance(other, pydantic_core.Url)
+            or isinstance(other, HttpUrl)
+        ):
             return self._url == other
         return False
 
