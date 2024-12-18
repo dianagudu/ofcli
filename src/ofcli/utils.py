@@ -412,8 +412,8 @@ def get_entity_type(entity: EntityStatementPlus) -> str:
         logger.warning(
             "Entity has multiple metadata types, choosing one randomly with priority for non-leaf entities."
         )
-        # if "federation_entity" in etypes:
-        #     return [t for t in etypes if t != "federation_entity"][0]
+        if "federation_entity" in etypes:
+            return [t for t in etypes if t != "federation_entity"][0]
     return etypes[0]
 
 
