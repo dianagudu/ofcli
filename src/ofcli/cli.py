@@ -1,5 +1,4 @@
-"""Executable for running ofcli cli tool.
-"""
+"""Executable for running ofcli cli tool."""
 
 from typing import Optional
 import aiohttp
@@ -375,9 +374,7 @@ async def discovery(entity_id: str, ta: tuple[str], **kwargs):
     """Discover all OPs in the federation available to a given RP."""
     async with aiohttp.ClientSession() as http_session:
         print_json(
-            await discover(
-                entity_id=entity_id, tas=list(ta), http_session=http_session
-            )
+            await discover(entity_id=entity_id, tas=list(ta), http_session=http_session)
         )
 
 
