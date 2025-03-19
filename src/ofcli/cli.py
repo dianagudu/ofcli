@@ -194,11 +194,12 @@ async def configuration(entity_id: str, verify: bool, **kwargs):
     """
     Fetches an entity configuration and prints it to stdout.
     """
-    print_json(
-        await get_entity_configuration(
-            entity_id=entity_id, verify=verify, http_session=aiohttp.ClientSession()
+    async with aiohttp.ClientSession() as http_session:
+        print_json(
+            await get_entity_configuration(
+                entity_id=entity_id, verify=verify, http_session=http_session
+            )
         )
-    )
 
 
 @entity.command("jwks", short_help="Prints the JWKS for given entity_id.")
@@ -209,9 +210,10 @@ async def jwks(entity_id: str, **kwargs):
     """
     Fetches an entity configuration and prints the JWKS to stdout.
     """
-    print_json(
-        await get_entity_jwks(entity_id=entity_id, http_session=aiohttp.ClientSession())
-    )
+    async with aiohttp.ClientSession() as http_session:
+        print_json(
+            await get_entity_jwks(entity_id=entity_id, http_session=http_session)
+        )
 
 
 @entity.command("metadata", short_help="Prints the metadata for given entity_id.")
@@ -229,11 +231,12 @@ async def metadata(entity_id: str, verify: bool = False, **kwargs):
     """
     Fetches an entity configuration and prints the metadata to stdout.
     """
-    print_json(
-        await get_entity_metadata(
-            entity_id=entity_id, verify=verify, http_session=aiohttp.ClientSession()
+    async with aiohttp.ClientSession() as http_session:
+        print_json(
+            await get_entity_metadata(
+                entity_id=entity_id, verify=verify, http_session=http_session
+            )
         )
-    )
 
 
 @cli.command(
@@ -275,17 +278,18 @@ async def trustchains(
     """
     Build trustchain for a given entity and print it to stdout.
     """
-    chains, graph = await get_trustchains(
-        entity_id=entity_id,
-        trust_anchors=list(ta),
-        export_graph=export is not None,
-        http_session=aiohttp.ClientSession(),
-    )
-    print_trustchains(chains=chains, details=details)
-    if export:
-        if not graph:
-            raise InternalException("No graph to export.")
-        graph.write(export)
+    async with aiohttp.ClientSession() as http_session:
+        chains, graph = await get_trustchains(
+            entity_id=entity_id,
+            trust_anchors=list(ta),
+            export_graph=export is not None,
+            http_session=http_session,
+        )
+        print_trustchains(chains=chains, details=details)
+        if export:
+            if not graph:
+                raise InternalException("No graph to export.")
+            graph.write(export)
 
 
 @cli.command(
@@ -300,11 +304,12 @@ async def fetch(entity_id: str, issuer: str, **kwargs):
     """
     Fetch an entity statement for ENTITY_ID from ISSUER and print it to stdout.
     """
-    print_json(
-        await fetch_entity_statement(
-            entity_id=entity_id, issuer=issuer, http_session=aiohttp.ClientSession()
+    async with aiohttp.ClientSession() as http_session:
+        print_json(
+            await fetch_entity_statement(
+                entity_id=entity_id, issuer=issuer, http_session=http_session
+            )
         )
-    )
 
 
 @cli.command("list", short_help="List all subordinate entities.")
@@ -338,15 +343,16 @@ async def federation_list(
     **kwargs,
 ):
     """Lists all subordinates of a federation entity."""
-    print_json(
-        await list_subordinates(
-            http_session=aiohttp.ClientSession(),
-            entity_id=entity_id,
-            entity_type=entity_type,
-            trust_marked=trust_marked,
-            trust_mark_id=trust_mark_id,
+    async with aiohttp.ClientSession() as http_session:
+        print_json(
+            await list_subordinates(
+                http_session=http_session,
+                entity_id=entity_id,
+                entity_type=entity_type,
+                trust_marked=trust_marked,
+                trust_mark_id=trust_mark_id,
+            )
         )
-    )
 
 
 @cli.command(
@@ -367,11 +373,12 @@ async def federation_list(
 @coro
 async def discovery(entity_id: str, ta: tuple[str], **kwargs):
     """Discover all OPs in the federation available to a given RP."""
-    print_json(
-        await discover(
-            entity_id=entity_id, tas=list(ta), http_session=aiohttp.ClientSession()
+    async with aiohttp.ClientSession() as http_session:
+        print_json(
+            await discover(
+                entity_id=entity_id, tas=list(ta), http_session=http_session
+            )
         )
-    )
 
 
 @cli.command(
@@ -403,14 +410,15 @@ async def discovery(entity_id: str, ta: tuple[str], **kwargs):
 @coro
 async def resolve(entity_id: str, ta: str, entity_type: str, **kwargs):
     """Resolve metadata and Trust Marks for an entity, given a trust anchor."""
-    metadata = await resolve_entity(
-        entity_id=entity_id,
-        ta=ta,
-        entity_type=entity_type,
-        http_session=aiohttp.ClientSession(),
-    )
-    logger.debug("Resolved metadata: %s", metadata)
-    print_json(metadata)
+    async with aiohttp.ClientSession() as http_session:
+        metadata = await resolve_entity(
+            entity_id=entity_id,
+            ta=ta,
+            entity_type=entity_type,
+            http_session=http_session,
+        )
+        logger.debug("Resolved metadata: %s", metadata)
+        print_json(metadata)
 
 
 @cli.command(
@@ -439,16 +447,17 @@ async def resolve(entity_id: str, ta: str, entity_type: str, **kwargs):
 async def get_subtree(entity_id: str, export: Optional[str], details: bool, **kwargs):
     """Discover all entities in the federation given by the root entity id and build tree."""
     # print_json(subtree(entity_id, export))
-    tree, graph = await subtree(
-        http_session=aiohttp.ClientSession(),
-        entity_id=entity_id,
-        export_graph=export is not None,
-    )
-    print_subtree(tree, details)
-    if export:
-        if not graph:
-            raise InternalException("No graph to export.")
-        graph.write(export)
+    async with aiohttp.ClientSession() as http_session:
+        tree, graph = await subtree(
+            http_session=http_session,
+            entity_id=entity_id,
+            export_graph=export is not None,
+        )
+        print_subtree(tree, details)
+        if export:
+            if not graph:
+                raise InternalException("No graph to export.")
+            graph.write(export)
 
 
 # command to build the paths between two entities in the OIDC federation

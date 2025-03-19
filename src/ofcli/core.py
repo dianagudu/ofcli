@@ -81,7 +81,6 @@ async def get_trustchains(
         http_session=http_session,
     )
     await resolver.resolve()
-    await http_session.close()
     graph = None
     if export_graph:
         graph = resolver.to_graph()
@@ -110,7 +109,6 @@ async def list_subordinates(
             )
         )
     )
-    http_session = aiohttp.ClientSession()
     return await utils.get_subordinates(
         http_session, entity, entity_type, trust_marked, trust_mark_id
     )
@@ -148,7 +146,6 @@ async def discover(
     op_list = await fedtree.discover_ops(
         trust_anchors=trust_anchors, http_session=http_session
     )
-    await http_session.close()
     return op_list
 
 
@@ -167,7 +164,6 @@ async def subtree(
         )
     )
     await subtree.discover(http_session)
-    await http_session.close()
     graph = None
     if export_graph:
         graph = subtree.to_graph()
@@ -190,7 +186,6 @@ async def resolve_entity(
         http_session=http_session,
     )
     await resolver.resolve()
-    await http_session.close()
     chains = resolver.chains()
     if len(chains) == 0:
         raise InternalException("Could not build trustchain to trust anchor.")
