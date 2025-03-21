@@ -1,3 +1,4 @@
+import time
 import pygraphviz
 import aiohttp
 from typing import List
@@ -18,11 +19,13 @@ from ofcli.utils import (
 class FedTree:
     entity: EntityStatementPlus
     subordinates: List["FedTree"]
+    time: int
 
     def __init__(self, jwt: str) -> None:
         self.entity = EntityStatementPlus(jwt)
         logger.debug(f"Created tree node for {self.entity.get('sub')}")
         self.subordinates = []
+        self.time = int(time.time())
 
     async def discover(self, http_session: aiohttp.ClientSession) -> None:
         # probably should also verify things here
@@ -57,6 +60,7 @@ class FedTree:
         subtree = {
             "entity_type": get_entity_type(self.entity),
             "entity_configuration": self.entity.get_jwt(),
+            "request_timestamp": self.time,
         }
         if len(subordinates) > 0:
             subtree.update({"subordinates": subordinates})  # type: ignore
