@@ -5,6 +5,7 @@ from gettext import gettext as _
 import json
 import urllib.parse
 import click
+import time
 from pydantic import HttpUrl
 import pydantic_core
 import pygraphviz
@@ -115,9 +116,14 @@ class URL:
 class EntityStatementPlus(EntityStatement):
     _jwt: str
 
-    def __init__(self, jwt: str):
+    def __init__(self, jwt: str, timestamp: int = int(time.time())):
         super().__init__(**get_payload(jwt))
         self._jwt = jwt
+        self._request_timestamp = timestamp
+
+    @property
+    def request_timestamp(self) -> int:
+        return self._request_timestamp
 
     def get_jwt(self) -> str:
         return self._jwt
