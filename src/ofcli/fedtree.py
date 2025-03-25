@@ -57,6 +57,7 @@ class FedTree:
         subtree = {
             "entity_type": get_entity_type(self.entity),
             "entity_configuration": self.entity.get_jwt(),
+            "request_timestamp": self.entity.request_timestamp,
         }
         if len(subordinates) > 0:
             subtree.update({"subordinates": subordinates})  # type: ignore
