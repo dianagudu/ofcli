@@ -247,9 +247,12 @@ def get_payload(jws_str: str) -> dict:
     if not payload:
         raise InternalException("Could not parse entity configuration payload.")
     if not isinstance(payload, dict):
-        raise InternalException(
-            "Entity configuration payload is not a mapping: %s" % payload
-        )
+        try:
+            payload = json.loads(payload)
+        except ValueError:
+            raise InternalException(
+                "Entity configuration payload is not a mapping: %s" % payload
+            )
 
     return payload
 
