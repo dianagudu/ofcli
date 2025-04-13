@@ -116,10 +116,10 @@ class URL:
 class EntityStatementPlus(EntityStatement):
     _jwt: str
 
-    def __init__(self, jwt: str, timestamp: int = int(time.time())):
+    def __init__(self, jwt: str):
         super().__init__(**get_payload(jwt))
         self._jwt = jwt
-        self._request_timestamp = timestamp
+        self._request_timestamp = int(time.time())
 
     @property
     def request_timestamp(self) -> int:
