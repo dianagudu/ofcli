@@ -252,8 +252,10 @@ def print_trustchains(chains: List[TrustChain], details: bool):
         logger.warn("No trust chains found.")
         return
     if details:
-        for chain in chains:
-            print_json(chain.to_json())
+        response = {}
+        for i, chain in enumerate(chains):
+            response[f"chain {i}"] = chain.to_json()
+        print_json(response)
     else:
         for chain in chains:
             click.echo("* " + str(chain))
